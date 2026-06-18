@@ -52,17 +52,19 @@ export function renderKeySvg(view: KeyView): string {
   }
   const { color, glyph } = presentation(view.status);
   const lines = wrapLabel(view.label, 8, 3);
-  const firstY = 104 - (lines.length - 1) * 15;
+  const firstY = 100 - (lines.length - 1) * 16;
   const labelSvg = lines
-    .map(
-      (line, i) =>
-        `<text x="72" y="${firstY + i * 30}" font-family="sans-serif" font-size="26" fill="#fff" text-anchor="middle">${escapeXml(line)}</text>`,
-    )
+    .map((line, i) => {
+      const y = firstY + i * 32;
+      // Stretch multi-char lines toward the key edges; leave short fragments centered.
+      const fit = line.length >= 4 ? ` textLength="132" lengthAdjust="spacingAndGlyphs"` : "";
+      return `<text x="72" y="${y}"${fit} font-family="sans-serif" font-size="30" fill="#fff" text-anchor="middle">${escapeXml(line)}</text>`;
+    })
     .join("");
   return toDataUri(
     `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">` +
       `<rect width="144" height="144" rx="16" fill="${color}"/>` +
-      `<text x="72" y="36" font-family="sans-serif" font-size="24" fill="#fff" text-anchor="middle">${glyph}</text>` +
+      `<text x="72" y="34" font-family="sans-serif" font-size="24" fill="#fff" text-anchor="middle">${glyph}</text>` +
       labelSvg +
       `</svg>`,
   );

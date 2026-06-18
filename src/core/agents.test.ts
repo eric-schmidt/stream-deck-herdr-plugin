@@ -33,16 +33,16 @@ test("labelFor uses cwd basename, truncates, disambiguates duplicates", () => {
   expect(labelFor(lmms, agents)).toBe("LMManagementSystem"); // full basename (<= 24 chars)
   const dupA = { name: "c", status: "idle", cwd: "/x/app", paneId: "w1:p1", workspaceId: "w1", focused: false } as const;
   const dupB = { name: "c", status: "idle", cwd: "/y/app", paneId: "w2:p3", workspaceId: "w2", focused: false } as const;
-  expect(labelFor(dupA, [dupA, dupB])).toBe("app·p1");
+  expect(labelFor(dupA, [dupA, dupB])).toBe("app #1");
 });
 
-test("labelFor keeps the disambiguator visible for long duplicate names", () => {
+test("labelFor numbers long duplicate names so they differ", () => {
   const a = { name: "claude", status: "idle", cwd: "/x/Loftware-Automation-Proxy", paneId: "w5:p1", workspaceId: "w5", focused: false } as const;
   const b = { name: "claude", status: "idle", cwd: "/y/Loftware-Automation-Proxy", paneId: "w5:p9", workspaceId: "w5", focused: false } as const;
   const la = labelFor(a, [a, b]);
   const lb = labelFor(b, [a, b]);
-  expect(la.endsWith("·p1")).toBe(true);
-  expect(lb.endsWith("·p9")).toBe(true);
+  expect(la.endsWith("#1")).toBe(true);
+  expect(lb.endsWith("#2")).toBe(true);
   expect(la).not.toBe(lb);
   expect(la.length).toBeLessThanOrEqual(24);
 });

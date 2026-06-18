@@ -54,23 +54,21 @@ function basename(path: string): string {
   return parts[parts.length - 1] ?? "";
 }
 
-function shortPane(paneId: string): string {
-  const parts = paneId.split(":");
-  return parts[parts.length - 1] ?? paneId;
-}
-
 function truncate(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }
 
 export function labelFor(agent: Agent, peers: Agent[], max = 24): string {
   const base = basename(agent.cwd) || agent.name;
-  const duplicate = peers.some(
-    (p) => p.paneId !== agent.paneId && (basename(p.cwd) || p.name) === base,
-  );
-  if (!duplicate) return truncate(base, max);
-  // Reserve room so the pane-id disambiguator always survives truncation,
-  // otherwise two agents with the same project name render identically.
-  const suffix = `·${shortPane(agent.paneId)}`;
+  // Agents whose project name collides get a stable 1-based number (#1, #2, …),
+  // ordered by paneId, so duplicates are told apart at a glance.
+  const sameName = peers
+    .filter((p) => (basename(p.cwd) || p.name) === base)
+    .slice()
+    .sort((a, b) => a.paneId.localeCompare(b.paneId));
+  if (sameName.length <= 1) return truncate(base, max);
+  const number = sameName.findIndex((p) => p.paneId === agent.paneId) + 1;
+  const suffix = ` #${number}`;
+  // Reserve room so the number always survives truncation.
   return `${truncate(base, Math.max(1, max - suffix.length))}${suffix}`;
 }
