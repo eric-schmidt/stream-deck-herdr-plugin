@@ -1,7 +1,7 @@
 // src/core/render.ts
 import { presentation, type AgentStatus } from "./status";
 
-export type KeyView = { label: string; status: AgentStatus } | null;
+export type KeyView = { label: string; status: AgentStatus; agent: string } | null;
 
 type PagerView = {
   page: number;
@@ -41,6 +41,19 @@ function wrapLabel(label: string, perLine: number, maxLines: number): string[] {
   return lines;
 }
 
+// Short 2-letter code per known herdr agent integration; falls back to the
+// first two letters of any other agent name.
+const AGENT_CODE: Record<string, string> = {
+  claude: "CL", codex: "CX", copilot: "CP", cursor: "CU", devin: "DV",
+  droid: "DR", kimi: "KM", opencode: "OC", kilo: "KL", hermes: "HM",
+  qodercli: "QC", pi: "PI", omp: "OM",
+};
+
+function agentCode(name: string): string {
+  const key = name.toLowerCase();
+  return AGENT_CODE[key] ?? name.slice(0, 2).toUpperCase();
+}
+
 export function renderKeySvg(view: KeyView): string {
   if (!view) {
     return toDataUri(
@@ -61,10 +74,14 @@ export function renderKeySvg(view: KeyView): string {
       return `<text x="72" y="${y}"${fit} font-family="sans-serif" font-size="26" fill="#fff" text-anchor="middle">${escapeXml(line)}</text>`;
     })
     .join("");
+  const badge =
+    `<text x="10" y="28" font-family="sans-serif" font-size="18" font-weight="bold" ` +
+    `fill="#ffffff" fill-opacity="0.75" text-anchor="start">${escapeXml(agentCode(view.agent))}</text>`;
   return toDataUri(
     `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">` +
       `<rect width="144" height="144" rx="16" fill="${color}"/>` +
       `<text x="72" y="34" font-family="sans-serif" font-size="24" fill="#fff" text-anchor="middle">${glyph}</text>` +
+      badge +
       labelSvg +
       `</svg>`,
   );

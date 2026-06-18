@@ -8,18 +8,28 @@ function decode(uri: string): string {
 }
 
 test("renderKeySvg paints the status color, glyph and escaped label", () => {
-  const svg = decode(renderKeySvg({ label: "a&b", status: "working" }));
+  const svg = decode(renderKeySvg({ label: "a&b", status: "working", agent: "claude" }));
   expect(svg).toContain("#E8901E");
   expect(svg).toContain("●");
   expect(svg).toContain("a&amp;b");
 });
 
 test("renderKeySvg wraps a long label onto up to 3 lines", () => {
-  const svg = decode(renderKeySvg({ label: "LMManagementSystem", status: "idle" }));
+  const svg = decode(renderKeySvg({ label: "LMManagementSystem", status: "idle", agent: "claude" }));
   const textCount = (svg.match(/<text/g) ?? []).length;
-  // 1 glyph line + 3 wrapped label lines
-  expect(textCount).toBe(4);
+  // 1 glyph line + 1 badge line + 3 wrapped label lines
+  expect(textCount).toBe(5);
   expect(svg).toContain("LMManage");
+});
+
+test("renderKeySvg shows the agent type short code", () => {
+  const svg = decode(renderKeySvg({ label: "proj", status: "working", agent: "claude" }));
+  expect(svg).toContain(">CL<");
+});
+
+test("renderKeySvg falls back to first two letters for unknown agents", () => {
+  const svg = decode(renderKeySvg({ label: "proj", status: "idle", agent: "zephyr" }));
+  expect(svg).toContain(">ZE<");
 });
 
 test("renderKeySvg empty slot is black with no label", () => {

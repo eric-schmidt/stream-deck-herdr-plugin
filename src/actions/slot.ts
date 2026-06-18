@@ -61,7 +61,9 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
       const agent = visible[index];
       void a.setTitle("");
       void a.setImage(
-        renderKeySvg(agent ? { label: labelFor(agent, agents), status: agent.status } : null),
+        renderKeySvg(
+          agent ? { label: labelFor(agent, agents), status: agent.status, agent: agent.name } : null,
+        ),
       );
     });
   }
