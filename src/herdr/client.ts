@@ -19,9 +19,12 @@ const defaultRun: RunFn = (cmd, args) =>
     });
   });
 
+export type NotifyOpts = { body?: string; sound?: "none" | "done" | "request" };
+
 export type HerdrClient = {
   listAgents(): Promise<RawAgent[]>;
   focus(paneId: string): Promise<void>;
+  notify(title: string, opts?: NotifyOpts): Promise<void>;
 };
 
 export function createHerdrClient(opts: { run?: RunFn; bin?: string } = {}): HerdrClient {
@@ -37,6 +40,12 @@ export function createHerdrClient(opts: { run?: RunFn; bin?: string } = {}): Her
     },
     async focus(paneId) {
       await run(bin, ["agent", "focus", paneId]);
+    },
+    async notify(title, opts = {}) {
+      const args = ["notification", "show", title];
+      if (opts.body !== undefined) args.push("--body", opts.body);
+      if (opts.sound !== undefined) args.push("--sound", opts.sound);
+      await run(bin, args);
     },
   };
 }

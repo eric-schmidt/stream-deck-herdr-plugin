@@ -75,6 +75,17 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
     }
   }
 
+  // Flash the key currently showing this agent, if it is on the visible page.
+  flash(paneId: string): void {
+    const { agents, page } = this.store.getState();
+    const visible = pageSlice(agents, page, PAGE_SIZE);
+    this.actions.forEach((a) => {
+      if (!a.isKey()) return;
+      const index = this.#slots.get(a.id) ?? 0;
+      if (visible[index]?.paneId === paneId) void a.showAlert();
+    });
+  }
+
   renderAll(): void {
     const { agents, page } = this.store.getState();
     const visible = pageSlice(agents, page, PAGE_SIZE);

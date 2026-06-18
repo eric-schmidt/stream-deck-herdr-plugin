@@ -31,3 +31,11 @@ test("focus runs `herdr agent focus <paneId>`", async () => {
   await client.focus("wJ:p1");
   expect(calls[0]).toEqual(["herdr", "agent", "focus", "wJ:p1"]);
 });
+
+test("notify runs `herdr notification show` with body + sound", async () => {
+  const calls: string[][] = [];
+  const run: RunFn = async (cmd, args) => { calls.push([cmd, ...args]); return ""; };
+  const client = createHerdrClient({ run });
+  await client.notify("proj blocked", { body: "claude", sound: "request" });
+  expect(calls[0]).toEqual(["herdr", "notification", "show", "proj blocked", "--body", "claude", "--sound", "request"]);
+});
