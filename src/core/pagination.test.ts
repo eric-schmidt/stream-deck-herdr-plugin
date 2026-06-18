@@ -7,6 +7,8 @@ import {
   pageSlice,
   offPageWorstAttention,
   offPageAttentionCount,
+  attentionAgents,
+  worstAttention,
 } from "./pagination";
 import type { Agent } from "./agents";
 
@@ -70,4 +72,15 @@ test("idle/unknown off-page produce no badge", () => {
   ];
   expect(offPageWorstAttention(agents, 0)).toBe(null);
   expect(offPageAttentionCount(agents, 0)).toBe(0);
+});
+
+test("attentionAgents keeps only blocked/done in order", () => {
+  const agents = [mk("working", "p0"), mk("blocked", "p1"), mk("idle", "p2"), mk("done", "p3")];
+  expect(attentionAgents(agents).map((a) => a.paneId)).toEqual(["p1", "p3"]);
+});
+
+test("worstAttention is blocked > done > null", () => {
+  expect(worstAttention([mk("done", "p0"), mk("blocked", "p1")])).toBe("blocked");
+  expect(worstAttention([mk("done", "p0")])).toBe("done");
+  expect(worstAttention([mk("working", "p0"), mk("idle", "p1")])).toBe(null);
 });

@@ -49,3 +49,15 @@ export function offPageAttentionCount(
       isOffPage(index, page, pageSize) && (ATTENTION_RANK[agent.status] ?? 0) > 0,
   ).length;
 }
+
+export function attentionAgents(agents: Agent[]): Agent[] {
+  return agents.filter((a) => (ATTENTION_RANK[a.status] ?? 0) > 0);
+}
+
+export function worstAttention(agents: Agent[]): Attention | null {
+  return agents.reduce<Attention | null>((best, a) => {
+    const rank = ATTENTION_RANK[a.status] ?? 0;
+    const bestRank = best ? ATTENTION_RANK[best] : 0;
+    return rank > bestRank ? (a.status as Attention) : best;
+  }, null);
+}

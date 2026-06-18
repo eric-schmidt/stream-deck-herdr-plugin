@@ -1,6 +1,6 @@
 // src/core/render.test.ts
 import { test, expect } from "bun:test";
-import { renderKeySvg, renderPagerSvg } from "./render";
+import { renderKeySvg, renderPagerSvg, renderAttentionSvg } from "./render";
 
 function decode(uri: string): string {
   expect(uri.startsWith("data:image/svg+xml,")).toBe(true);
@@ -45,6 +45,18 @@ test("renderKeySvg falls back to a 2-letter code when no icon exists", () => {
 test("renderKeySvg empty slot is black with no label", () => {
   const svg = decode(renderKeySvg(null));
   expect(svg).toContain("#000");
+});
+
+test("renderAttentionSvg colors by worst status and shows the count", () => {
+  const svg = decode(renderAttentionSvg({ count: 3, attention: "blocked" }));
+  expect(svg).toContain("#D13438"); // blocked color
+  expect(svg).toContain(">3<");
+});
+
+test("renderAttentionSvg is dim when nothing needs attention", () => {
+  const svg = decode(renderAttentionSvg({ count: 0, attention: null }));
+  expect(svg).toContain("#0a0a0a");
+  expect(svg).toContain(">0<");
 });
 
 test("renderPagerSvg shows page indicator and badge when attention present", () => {

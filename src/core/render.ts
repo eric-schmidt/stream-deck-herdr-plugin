@@ -111,6 +111,19 @@ export function renderKeySvg(view: KeyView): string {
   );
 }
 
+export function renderAttentionSvg(opts: { count: number; attention: "blocked" | "done" | null }): string {
+  const active = opts.count > 0 && opts.attention !== null;
+  const bg = active ? presentation(opts.attention as "blocked" | "done").color : "#0a0a0a";
+  const fg = active ? "#ffffff" : "#444444";
+  return toDataUri(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">` +
+      `<rect width="144" height="144" rx="16" fill="${bg}"/>` +
+      `<text x="72" y="74" font-family="sans-serif" font-size="52" fill="${fg}" text-anchor="middle">⇥</text>` +
+      `<text x="72" y="116" font-family="sans-serif" font-size="22" fill="${fg}" text-anchor="middle">${opts.count}</text>` +
+      `</svg>`,
+  );
+}
+
 export function renderPagerSvg(view: PagerView): string {
   const multi = view.total > 1;
   const bg = multi ? "#111827" : "#0a0a0a";
