@@ -57,7 +57,7 @@ export function renderKeySvg(view: KeyView): string {
     .map((line, i) => {
       const y = firstY + i * 30;
       // Stretch multi-char lines almost to the key edges; leave short fragments centered.
-      const fit = line.length >= 4 ? ` textLength="138" lengthAdjust="spacingAndGlyphs"` : "";
+      const fit = line.length >= 4 ? ` textLength="142" lengthAdjust="spacingAndGlyphs"` : "";
       return `<text x="72" y="${y}"${fit} font-family="sans-serif" font-size="26" fill="#fff" text-anchor="middle">${escapeXml(line)}</text>`;
     })
     .join("");
