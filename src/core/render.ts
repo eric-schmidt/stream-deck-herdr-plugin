@@ -52,13 +52,13 @@ export function renderKeySvg(view: KeyView): string {
   }
   const { color, glyph } = presentation(view.status);
   const lines = wrapLabel(view.label, 8, 3);
-  const firstY = 100 - (lines.length - 1) * 16;
+  const firstY = 102 - (lines.length - 1) * 15;
   const labelSvg = lines
     .map((line, i) => {
-      const y = firstY + i * 32;
-      // Stretch multi-char lines toward the key edges; leave short fragments centered.
-      const fit = line.length >= 4 ? ` textLength="132" lengthAdjust="spacingAndGlyphs"` : "";
-      return `<text x="72" y="${y}"${fit} font-family="sans-serif" font-size="30" fill="#fff" text-anchor="middle">${escapeXml(line)}</text>`;
+      const y = firstY + i * 30;
+      // Stretch multi-char lines almost to the key edges; leave short fragments centered.
+      const fit = line.length >= 4 ? ` textLength="138" lengthAdjust="spacingAndGlyphs"` : "";
+      return `<text x="72" y="${y}"${fit} font-family="sans-serif" font-size="26" fill="#fff" text-anchor="middle">${escapeXml(line)}</text>`;
     })
     .join("");
   return toDataUri(
