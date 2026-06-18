@@ -49,6 +49,12 @@ export function normalize(raw: RawAgent[]): Agent[] {
     );
 }
 
+// Statuses worth a slot on the deck. Idle agents are intentionally hidden —
+// they need no attention and would otherwise consume the limited keys.
+export function visibleAgents(agents: Agent[]): Agent[] {
+  return agents.filter((a) => a.status !== "idle");
+}
+
 function basename(path: string): string {
   const parts = path.split("/").filter(Boolean);
   return parts[parts.length - 1] ?? "";

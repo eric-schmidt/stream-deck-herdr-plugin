@@ -5,7 +5,7 @@ import type { RawAgent } from "./agents";
 
 const six: RawAgent[] = Array.from({ length: 6 }, (_, i) => ({
   agent: "claude",
-  agent_status: "idle",
+  agent_status: "working", // non-idle: idle agents are filtered out of the store
   cwd: `/x/p${i}`,
   pane_id: `w1:p${i}`,
   workspace_id: "w1",
@@ -44,6 +44,18 @@ test("a single failure keeps last-good; a second failure empties", async () => {
   expect(store.getState().agents).toHaveLength(6); // kept
   await store.pollNow();
   expect(store.getState().agents).toHaveLength(0); // emptied
+});
+
+test("idle agents are filtered out of the store", async () => {
+  const mixed: RawAgent[] = [
+    { agent: "a", agent_status: "working", cwd: "/x/a", pane_id: "w1:p1", workspace_id: "w1" },
+    { agent: "b", agent_status: "idle", cwd: "/x/b", pane_id: "w1:p2", workspace_id: "w1" },
+    { agent: "c", agent_status: "blocked", cwd: "/x/c", pane_id: "w1:p3", workspace_id: "w1" },
+    { agent: "d", agent_status: "idle", cwd: "/x/d", pane_id: "w1:p4", workspace_id: "w1" },
+  ];
+  const store = createAgentStore({ fetchAgents: async () => mixed });
+  await store.pollNow();
+  expect(store.getState().agents.map((a) => a.paneId)).toEqual(["w1:p1", "w1:p3"]);
 });
 
 test("page clamps when the agent list shrinks", async () => {

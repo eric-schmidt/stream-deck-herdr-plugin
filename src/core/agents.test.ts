@@ -1,6 +1,6 @@
 // src/core/agents.test.ts
 import { test, expect } from "bun:test";
-import { normalize, labelFor, type RawAgent } from "./agents";
+import { normalize, visibleAgents, labelFor, type RawAgent } from "./agents";
 import fixture from "../../tests/fixtures/agent-list.json";
 
 const raw = fixture.result.agents as RawAgent[];
@@ -25,6 +25,23 @@ test("normalize coerces unknown status and drops entries without pane_id", () =>
   ] as RawAgent[]);
   expect(agents).toHaveLength(1);
   expect(agents[0].status).toBe("unknown");
+});
+
+test("visibleAgents drops idle agents and keeps the rest in order", () => {
+  const agents = normalize([
+    { agent: "x", agent_status: "idle", cwd: "/a", pane_id: "w1:p1", workspace_id: "w1" },
+    { agent: "y", agent_status: "working", cwd: "/b", pane_id: "w1:p2", workspace_id: "w1" },
+    { agent: "z", agent_status: "blocked", cwd: "/c", pane_id: "w1:p3", workspace_id: "w1" },
+    { agent: "w", agent_status: "done", cwd: "/d", pane_id: "w1:p4", workspace_id: "w1" },
+    { agent: "v", agent_status: "weird", cwd: "/e", pane_id: "w1:p5", workspace_id: "w1" },
+  ] as RawAgent[]);
+  // idle dropped; working/blocked/done/unknown kept
+  expect(visibleAgents(agents).map((a) => a.status)).toEqual([
+    "working",
+    "blocked",
+    "done",
+    "unknown",
+  ]);
 });
 
 test("labelFor uses cwd basename, truncates, disambiguates duplicates", () => {

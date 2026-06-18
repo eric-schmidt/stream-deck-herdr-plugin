@@ -1,5 +1,5 @@
 // src/core/store.ts
-import { normalize, type Agent, type RawAgent } from "./agents";
+import { normalize, visibleAgents, type Agent, type RawAgent } from "./agents";
 import { clampPage, pageCount } from "./pagination";
 
 export type StoreState = { agents: Agent[]; page: number };
@@ -52,7 +52,7 @@ export function createAgentStore(opts: {
       if (inFlight) return;
       inFlight = true;
       try {
-        const agents = normalize(await opts.fetchAgents());
+        const agents = visibleAgents(normalize(await opts.fetchAgents()));
         hasLastGood = true;
         failStreak = 0;
         set({ agents, page: clampPage(state.page, pageCount(agents.length, pageSize)) });
