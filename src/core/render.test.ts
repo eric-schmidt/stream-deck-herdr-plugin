@@ -14,6 +14,14 @@ test("renderKeySvg paints the status color, glyph and escaped label", () => {
   expect(svg).toContain("a&amp;b");
 });
 
+test("renderKeySvg wraps a long label onto up to 3 lines", () => {
+  const svg = decode(renderKeySvg({ label: "LMManagementSystem", status: "idle" }));
+  const textCount = (svg.match(/<text/g) ?? []).length;
+  // 1 glyph line + 3 wrapped label lines
+  expect(textCount).toBe(4);
+  expect(svg).toContain("LMManage");
+});
+
 test("renderKeySvg empty slot is black with no label", () => {
   const svg = decode(renderKeySvg(null));
   expect(svg).toContain("#000");
@@ -27,7 +35,7 @@ test("renderPagerSvg shows page indicator and badge when attention present", () 
 });
 
 test("renderPagerSvg shows count when more than one off-page attention", () => {
-  const svg = decode(renderPagerSvg({ page: 0, total: 3, attention: "working", count: 4 }));
+  const svg = decode(renderPagerSvg({ page: 0, total: 3, attention: "done", count: 4 }));
   expect(svg).toContain(">4<"); // count rendered instead of glyph
 });
 

@@ -19,7 +19,7 @@ export function pageSlice(agents: Agent[], page: number, pageSize = PAGE_SIZE): 
   return agents.slice(start, start + pageSize);
 }
 
-type Attention = "blocked" | "done" | "working";
+type Attention = "blocked" | "done";
 
 function isOffPage(index: number, page: number, pageSize: number): boolean {
   const start = page * pageSize;

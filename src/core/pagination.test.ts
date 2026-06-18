@@ -38,7 +38,7 @@ test("pageSlice returns the window for a page", () => {
   expect(pageSlice(agents, 1).map((a) => a.paneId)).toEqual(["f"]);
 });
 
-test("offPageWorstAttention ranks blocked > done > working and ignores on-page", () => {
+test("offPageWorstAttention ranks blocked > done and ignores working + on-page", () => {
   const agents = [
     ...["p0", "p1", "p2", "p3", "p4"].map((p) => mk("idle", p)), // page 0
     mk("working", "p5"),
@@ -46,9 +46,20 @@ test("offPageWorstAttention ranks blocked > done > working and ignores on-page",
     mk("blocked", "p7"),
   ];
   expect(offPageWorstAttention(agents, 0)).toBe("blocked");
-  expect(offPageAttentionCount(agents, 0)).toBe(3);
+  // working is NOT a notify state, so only done + blocked count
+  expect(offPageAttentionCount(agents, 0)).toBe(2);
   // when the blocked agent is on the current page, it no longer counts off-page
   expect(offPageWorstAttention(agents, 1)).toBe(null);
+});
+
+test("working off-page never raises the pager badge", () => {
+  const agents = [
+    ...["p0", "p1", "p2", "p3", "p4"].map((p) => mk("idle", p)),
+    mk("working", "p5"),
+    mk("working", "p6"),
+  ];
+  expect(offPageWorstAttention(agents, 0)).toBe(null);
+  expect(offPageAttentionCount(agents, 0)).toBe(0);
 });
 
 test("idle/unknown off-page produce no badge", () => {

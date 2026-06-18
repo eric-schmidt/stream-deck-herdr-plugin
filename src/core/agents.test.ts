@@ -30,7 +30,7 @@ test("normalize coerces unknown status and drops entries without pane_id", () =>
 test("labelFor uses cwd basename, truncates, disambiguates duplicates", () => {
   const agents = normalize(raw);
   const lmms = agents.find((a) => a.paneId === "w7:p2")!;
-  expect(labelFor(lmms, agents)).toBe("LMManage…"); // basename truncated to 9
+  expect(labelFor(lmms, agents)).toBe("LMManagementSystem"); // full basename (<= 24 chars)
   const dupA = { name: "c", status: "idle", cwd: "/x/app", paneId: "w1:p1", workspaceId: "w1", focused: false } as const;
   const dupB = { name: "c", status: "idle", cwd: "/y/app", paneId: "w2:p3", workspaceId: "w2", focused: false } as const;
   expect(labelFor(dupA, [dupA, dupB])).toBe("app·p1");

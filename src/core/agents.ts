@@ -63,7 +63,7 @@ function truncate(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }
 
-export function labelFor(agent: Agent, peers: Agent[], max = 9): string {
+export function labelFor(agent: Agent, peers: Agent[], max = 24): string {
   const base = basename(agent.cwd) || agent.name;
   const duplicate = peers.some(
     (p) => p.paneId !== agent.paneId && (basename(p.cwd) || p.name) === base,
