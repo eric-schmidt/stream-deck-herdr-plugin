@@ -2,3 +2,7 @@ node_modules/
 *.streamDeckPlugin
 .DS_Store
 dist/
+
+# Stream Deck build + log artifacts
+*.sdPlugin/bin
+*.sdPlugin/logs

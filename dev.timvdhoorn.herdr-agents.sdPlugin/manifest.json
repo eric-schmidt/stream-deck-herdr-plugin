@@ -1,0 +1,59 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+	"Name": "herdr agents",
+	"Version": "0.1.0.0",
+	"Author": "Tim van der Hoorn",
+	"Description": "Live herdr agent status on your Stream Deck.",
+	"Category": "herdr",
+	"CategoryIcon": "imgs/plugin/category-icon",
+	"Icon": "imgs/plugin/marketplace",
+	"URL": "https://github.com/timvdhoorn/stream-deck-herdr-plugin",
+	"CodePath": "bin/plugin.js",
+	"SDKVersion": 3,
+	"Software": {
+		"MinimumVersion": "7.1"
+	},
+	"Nodejs": {
+		"Version": "24",
+		"Debug": "enabled"
+	},
+	"OS": [
+		{
+			"Platform": "mac",
+			"MinimumVersion": "12"
+		}
+	],
+	"UUID": "dev.timvdhoorn.herdr-agents",
+	"Actions": [
+		{
+			"Name": "Agent Slot",
+			"UUID": "dev.timvdhoorn.herdr-agents.slot",
+			"Icon": "imgs/actions/slot/icon",
+			"Tooltip": "Shows one herdr agent (by slot index).",
+			"PropertyInspectorPath": "ui/slot.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/slot/key",
+					"TitleAlignment": "bottom"
+				}
+			]
+		},
+		{
+			"Name": "Pager",
+			"UUID": "dev.timvdhoorn.herdr-agents.pager",
+			"Icon": "imgs/actions/pager/icon",
+			"Tooltip": "Next page; flags off-page agents needing attention.",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/pager/key"
+				}
+			]
+		}
+	]
+}
