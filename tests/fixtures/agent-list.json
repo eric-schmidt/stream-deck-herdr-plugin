@@ -1,0 +1,11 @@
+{
+  "result": {
+    "type": "agent_list",
+    "agents": [
+      { "agent": "claude", "agent_status": "idle", "cwd": "/Users/timvdhoorn/Devops/Logidirect/Loftware-Automation-Proxy", "focused": false, "pane_id": "w5:p1", "workspace_id": "w5", "tab_id": "w5:t1" },
+      { "agent": "claude", "agent_status": "working", "cwd": "/Users/timvdhoorn/Devops/Personal/stream-deck-herdr-plugin", "focused": true, "pane_id": "wJ:p1", "workspace_id": "wJ", "tab_id": "wJ:t1" },
+      { "agent": "claude", "agent_status": "blocked", "cwd": "/Users/timvdhoorn/Devops/Labelsenmeer/LMManagementSystem", "focused": false, "pane_id": "w7:p2", "workspace_id": "w7", "tab_id": "w7:t2" },
+      { "agent": "claude", "agent_status": "done", "cwd": "/Users/timvdhoorn/Devops/Labelsenmeer/n8n-flows", "focused": false, "pane_id": "wG:p1", "workspace_id": "wG", "tab_id": "wG:t1" }
+    ]
+  }
+}
