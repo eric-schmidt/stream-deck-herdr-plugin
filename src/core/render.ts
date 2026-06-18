@@ -82,10 +82,10 @@ function agentBadge(name: string): string {
 
 export function renderKeySvg(view: KeyView): string {
   if (!view) {
+    // Empty slot: fully black ("screen off"), no marker.
     return toDataUri(
       `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">` +
         `<rect width="144" height="144" rx="16" fill="#000"/>` +
-        `<text x="72" y="84" font-family="sans-serif" font-size="40" fill="#333" text-anchor="middle">·</text>` +
         `</svg>`,
     );
   }
