@@ -1,6 +1,6 @@
 // src/core/agents.test.ts
 import { test, expect } from "bun:test";
-import { normalize, visibleAgents, labelFor, type RawAgent } from "./agents";
+import { normalize, visibleAgents, orderForDisplay, labelFor, type RawAgent } from "./agents";
 import fixture from "../../tests/fixtures/agent-list.json";
 
 const raw = fixture.result.agents as RawAgent[];
@@ -42,6 +42,24 @@ test("visibleAgents drops idle agents and keeps the rest in order", () => {
     "done",
     "unknown",
   ]);
+});
+
+test("orderForDisplay puts pinned first in pin order, keeps pinned idle visible", () => {
+  const all = normalize([
+    { agent: "a", agent_status: "working", cwd: "/a", pane_id: "w1:p1", workspace_id: "w1" },
+    { agent: "b", agent_status: "idle", cwd: "/b", pane_id: "w1:p2", workspace_id: "w1" },
+    { agent: "c", agent_status: "blocked", cwd: "/c", pane_id: "w1:p3", workspace_id: "w1" },
+  ] as RawAgent[]);
+  // pin idle p2 then p1: both move to the front in pin order, idle p2 stays visible
+  expect(orderForDisplay(all, ["w1:p2", "w1:p1"]).map((a) => a.paneId)).toEqual([
+    "w1:p2",
+    "w1:p1",
+    "w1:p3",
+  ]);
+  // no pins: idle dropped, rest keeps order
+  expect(orderForDisplay(all, []).map((a) => a.paneId)).toEqual(["w1:p1", "w1:p3"]);
+  // stale pin (agent gone) is skipped
+  expect(orderForDisplay(all, ["gone"]).map((a) => a.paneId)).toEqual(["w1:p1", "w1:p3"]);
 });
 
 test("labelFor uses cwd basename, truncates, disambiguates duplicates", () => {

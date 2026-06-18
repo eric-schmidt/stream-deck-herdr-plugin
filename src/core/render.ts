@@ -2,7 +2,7 @@
 import { presentation, type AgentStatus } from "./status";
 import { AGENT_ICON } from "./agent-icons";
 
-export type KeyView = { label: string; status: AgentStatus; agent: string } | null;
+export type KeyView = { label: string; status: AgentStatus; agent: string; pinned: boolean } | null;
 
 type PagerView = {
   page: number;
@@ -101,11 +101,19 @@ export function renderKeySvg(view: KeyView): string {
     })
     .join("");
   const badge = agentBadge(view.agent);
+  // Pushpin marker (round head + needle) in the top-right corner when pinned.
+  const pin = view.pinned
+    ? `<g fill="#ffffff" fill-opacity="0.92">` +
+      `<circle cx="126" cy="15" r="7"/>` +
+      `<path d="M126 20 L122 23 L126 33 L130 23 Z"/>` +
+      `</g>`
+    : "";
   return toDataUri(
     `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">` +
       `<rect width="144" height="144" rx="16" fill="${color}"/>` +
       `<text x="72" y="34" font-family="sans-serif" font-size="24" fill="#fff" text-anchor="middle">${glyph}</text>` +
       badge +
+      pin +
       labelSvg +
       `</svg>`,
   );

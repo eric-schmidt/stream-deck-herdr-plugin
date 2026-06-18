@@ -55,6 +55,19 @@ export function visibleAgents(agents: Agent[]): Agent[] {
   return agents.filter((a) => a.status !== "idle");
 }
 
+// Display order for the deck: pinned agents first, in pin order (so the first
+// pin lands on slot 1, the second next to it, …), kept visible even when idle;
+// then the rest with idle agents hidden. `pinned` is a list of paneIds; stale
+// pins (agent gone) are skipped.
+export function orderForDisplay(all: Agent[], pinned: string[]): Agent[] {
+  const pinnedSet = new Set(pinned);
+  const pinnedAgents = pinned
+    .map((id) => all.find((a) => a.paneId === id))
+    .filter((a): a is Agent => a !== undefined);
+  const rest = visibleAgents(all.filter((a) => !pinnedSet.has(a.paneId)));
+  return [...pinnedAgents, ...rest];
+}
+
 function basename(path: string): string {
   const parts = path.split("/").filter(Boolean);
   return parts[parts.length - 1] ?? "";
