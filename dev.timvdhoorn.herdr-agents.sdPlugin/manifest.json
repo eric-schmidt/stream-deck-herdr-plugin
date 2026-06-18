@@ -45,27 +45,13 @@
 			"Name": "Pager",
 			"UUID": "dev.timvdhoorn.herdr-agents.pager",
 			"Icon": "imgs/actions/pager/icon",
-			"Tooltip": "Next page; flags off-page agents needing attention.",
+			"Tooltip": "Jumps to the next blocked/done agent when any need attention; otherwise pages the agent grid.",
 			"Controllers": [
 				"Keypad"
 			],
 			"States": [
 				{
 					"Image": "imgs/actions/pager/key"
-				}
-			]
-		},
-		{
-			"Name": "Jump to Attention",
-			"UUID": "dev.timvdhoorn.herdr-agents.attention",
-			"Icon": "imgs/actions/attention/icon",
-			"Tooltip": "Focus the next agent that is blocked or done; press again to cycle.",
-			"Controllers": [
-				"Keypad"
-			],
-			"States": [
-				{
-					"Image": "imgs/actions/attention/key"
 				}
 			]
 		}

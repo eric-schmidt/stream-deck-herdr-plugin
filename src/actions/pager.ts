@@ -1,17 +1,28 @@
 // src/actions/pager.ts
-import { action, SingletonAction, type WillAppearEvent, type KeyDownEvent } from "@elgato/streamdeck";
+import streamDeck, {
+  action,
+  SingletonAction,
+  type WillAppearEvent,
+  type KeyDownEvent,
+} from "@elgato/streamdeck";
 import type { AgentStore } from "../core/store";
-import {
-  pageCount,
-  offPageWorstAttention,
-  offPageAttentionCount,
-  PAGE_SIZE,
-} from "../core/pagination";
-import { renderPagerSvg } from "../core/render";
+import type { HerdrClient } from "../herdr/client";
+import { pageCount, attentionAgents, worstAttention, PAGE_SIZE } from "../core/pagination";
+import { renderPagerSvg, renderAttentionSvg } from "../core/render";
 
+// One key, two modes. When any agent is blocked or done it acts as "jump to the
+// next agent needing attention" (focus + cycle on repeat presses); otherwise it
+// pages through the agent grid. The rendered icon shows which mode is active, so
+// a single key covers both jobs on the 6-key Mini.
 @action({ UUID: "dev.timvdhoorn.herdr-agents.pager" })
 export class PagerAction extends SingletonAction {
-  constructor(private readonly store: AgentStore) {
+  // paneId we last jumped to, so repeated presses cycle through attention agents.
+  #cursor: string | null = null;
+
+  constructor(
+    private readonly store: AgentStore,
+    private readonly herdr: HerdrClient,
+  ) {
     super();
   }
 
@@ -19,17 +30,36 @@ export class PagerAction extends SingletonAction {
     this.renderAll();
   }
 
-  override onKeyDown(_ev: KeyDownEvent): void {
-    this.store.nextPage();
+  override async onKeyDown(_ev: KeyDownEvent): Promise<void> {
+    const list = attentionAgents(this.store.getState().agents);
+    if (list.length === 0) {
+      this.store.nextPage();
+      return;
+    }
+    const at = list.findIndex((a) => a.paneId === this.#cursor);
+    const next = list[(at + 1) % list.length]; // at === -1 → starts at 0
+    this.#cursor = next.paneId;
+    try {
+      await this.herdr.focus(next.paneId);
+    } catch (e) {
+      streamDeck.logger.error(`attention focus failed: ${String(e)}`);
+    }
   }
 
   renderAll(): void {
     const { agents, page } = this.store.getState();
-    const total = pageCount(agents.length, PAGE_SIZE);
-    const attention = offPageWorstAttention(agents, page, PAGE_SIZE);
-    const count = offPageAttentionCount(agents, page, PAGE_SIZE);
+    const attention = attentionAgents(agents);
+    const svg =
+      attention.length > 0
+        ? renderAttentionSvg({ count: attention.length, attention: worstAttention(agents) })
+        : renderPagerSvg({
+            page,
+            total: pageCount(agents.length, PAGE_SIZE),
+            attention: null,
+            count: 0,
+          });
     this.actions.forEach((a) => {
-      if (a.isKey()) void a.setImage(renderPagerSvg({ page, total, attention, count }));
+      if (a.isKey()) void a.setImage(svg);
     });
   }
 }
