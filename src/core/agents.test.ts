@@ -35,3 +35,14 @@ test("labelFor uses cwd basename, truncates, disambiguates duplicates", () => {
   const dupB = { name: "c", status: "idle", cwd: "/y/app", paneId: "w2:p3", workspaceId: "w2", focused: false } as const;
   expect(labelFor(dupA, [dupA, dupB])).toBe("app·p1");
 });
+
+test("labelFor keeps the disambiguator visible for long duplicate names", () => {
+  const a = { name: "claude", status: "idle", cwd: "/x/Loftware-Automation-Proxy", paneId: "w5:p1", workspaceId: "w5", focused: false } as const;
+  const b = { name: "claude", status: "idle", cwd: "/y/Loftware-Automation-Proxy", paneId: "w5:p9", workspaceId: "w5", focused: false } as const;
+  const la = labelFor(a, [a, b]);
+  const lb = labelFor(b, [a, b]);
+  expect(la.endsWith("·p1")).toBe(true);
+  expect(lb.endsWith("·p9")).toBe(true);
+  expect(la).not.toBe(lb);
+  expect(la.length).toBeLessThanOrEqual(24);
+});

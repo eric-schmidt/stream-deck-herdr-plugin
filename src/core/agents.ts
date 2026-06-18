@@ -68,6 +68,9 @@ export function labelFor(agent: Agent, peers: Agent[], max = 24): string {
   const duplicate = peers.some(
     (p) => p.paneId !== agent.paneId && (basename(p.cwd) || p.name) === base,
   );
-  const text = duplicate ? `${base}·${shortPane(agent.paneId)}` : base;
-  return truncate(text, max);
+  if (!duplicate) return truncate(base, max);
+  // Reserve room so the pane-id disambiguator always survives truncation,
+  // otherwise two agents with the same project name render identically.
+  const suffix = `·${shortPane(agent.paneId)}`;
+  return `${truncate(base, Math.max(1, max - suffix.length))}${suffix}`;
 }
