@@ -48,7 +48,7 @@ export function renderPagerSvg(view: PagerView): string {
   const multi = view.total > 1;
   const bg = multi ? "#111827" : "#0a0a0a";
   const arrow = multi ? "#ffffff" : "#444444";
-  const badge = view.attention ? presentation(view.attention) : null;
+  const badge = view.total > 1 && view.attention ? presentation(view.attention) : null;
   const badgeSvg = badge
     ? `<circle cx="116" cy="28" r="22" fill="${badge.color}"/>` +
       `<text x="116" y="36" font-family="sans-serif" font-size="24" fill="#fff" text-anchor="middle">${view.count > 1 ? view.count : badge.glyph}</text>`

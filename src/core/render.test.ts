@@ -36,3 +36,9 @@ test("renderPagerSvg single page has no badge", () => {
   expect(svg).toContain("1/1");
   expect(svg).not.toContain("circle");
 });
+
+test("renderPagerSvg single page renders no badge even with attention", () => {
+  const svg = decode(renderPagerSvg({ page: 0, total: 1, attention: "blocked", count: 3 }));
+  expect(svg).toContain("1/1");
+  expect(svg).not.toContain("circle");
+});
