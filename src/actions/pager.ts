@@ -7,6 +7,7 @@ import streamDeck, {
 } from "@elgato/streamdeck";
 import type { AgentStore } from "../core/store";
 import type { HerdrClient } from "../herdr/client";
+import type { TerminalActivator } from "../os/terminal";
 import { pageCount, attentionAgents, worstAttention, PAGE_SIZE } from "../core/pagination";
 import { renderPagerSvg, renderAttentionSvg } from "../core/render";
 
@@ -22,6 +23,7 @@ export class PagerAction extends SingletonAction {
   constructor(
     private readonly store: AgentStore,
     private readonly herdr: HerdrClient,
+    private readonly terminal: TerminalActivator,
   ) {
     super();
   }
@@ -43,6 +45,12 @@ export class PagerAction extends SingletonAction {
       await this.herdr.focus(next.paneId);
     } catch (e) {
       streamDeck.logger.error(`attention focus failed: ${String(e)}`);
+    }
+    // Bring the host terminal forward too (no-op if already frontmost).
+    try {
+      await this.terminal.activate();
+    } catch (e) {
+      streamDeck.logger.error(`raise terminal failed: ${String(e)}`);
     }
   }
 

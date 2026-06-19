@@ -1,6 +1,7 @@
 // src/plugin.ts
 import streamDeck from "@elgato/streamdeck";
 import { createHerdrClient } from "./herdr/client";
+import { createTerminalActivator } from "./os/terminal";
 import { createAgentStore } from "./core/store";
 import { AgentSlotAction } from "./actions/slot";
 import { PagerAction } from "./actions/pager";
@@ -12,10 +13,12 @@ import type { Agent } from "./core/agents";
 streamDeck.logger.setLevel("info");
 
 const herdr = createHerdrClient();
+// undefined app → default (iTerm); set HERDR_DECK_TERMINAL_APP to override.
+const terminal = createTerminalActivator({ app: process.env.HERDR_DECK_TERMINAL_APP });
 const store = createAgentStore({ fetchAgents: () => herdr.listAgents() });
 
-const slot = new AgentSlotAction(store, herdr);
-const pager = new PagerAction(store, herdr);
+const slot = new AgentSlotAction(store, herdr, terminal);
+const pager = new PagerAction(store, herdr, terminal);
 
 let prevAgents: Agent[] | null = null;
 

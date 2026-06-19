@@ -10,6 +10,7 @@ import streamDeck, {
 } from "@elgato/streamdeck";
 import type { AgentStore } from "../core/store";
 import type { HerdrClient } from "../herdr/client";
+import type { TerminalActivator } from "../os/terminal";
 import { pageSlice, PAGE_SIZE } from "../core/pagination";
 import { labelFor } from "../core/agents";
 import { renderKeySvg } from "../core/render";
@@ -28,6 +29,7 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
   constructor(
     private readonly store: AgentStore,
     private readonly herdr: HerdrClient,
+    private readonly terminal: TerminalActivator,
   ) {
     super();
   }
@@ -72,6 +74,14 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
       await this.herdr.focus(paneId);
     } catch (e) {
       streamDeck.logger.error(`focus failed: ${String(e)}`);
+    }
+    // Raise the host terminal so the focused pane is actually on screen even when
+    // the terminal was in the background. Independent of focus so a raise failure
+    // never masks a successful pane switch.
+    try {
+      await this.terminal.activate();
+    } catch (e) {
+      streamDeck.logger.error(`raise terminal failed: ${String(e)}`);
     }
   }
 
