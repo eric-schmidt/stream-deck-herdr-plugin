@@ -6,3 +6,8 @@ dist/
 # Stream Deck build + log artifacts
 *.sdPlugin/bin
 *.sdPlugin/logs
+
+# AI tooling + planning artifacts (kept local, not published)
+.claude/
+plans/
+docs/superpowers/
