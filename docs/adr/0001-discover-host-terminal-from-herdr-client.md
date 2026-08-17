@@ -54,6 +54,11 @@ looking at from the `herdr server` daemon and from the plugin's own short-lived
 Everything routes through `open` (LaunchServices), which requires no TCC grant of any
 kind. `osascript` survives only in the opt-in `HERDR_DECK_TERMINAL_TAB` keystroke fallback.
 
+Step 2 is the load-bearing claim, and it is **confirmed end-to-end** (2026-08-17): with
+herdr running in a Warp tab and another app frontmost, a key press raised Warp *and*
+landed on herdr's tab. Worth restating because `open` exits 0 whether or not Warp acts on
+the URL, so this cannot be verified from an exit status — only by observation.
+
 ### The load-bearing detail
 
 `ps` reports the environment a process was **exec'd with**, not its current environment.
