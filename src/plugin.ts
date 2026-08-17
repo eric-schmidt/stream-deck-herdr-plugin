@@ -1,7 +1,8 @@
 // src/plugin.ts
 import streamDeck from "@elgato/streamdeck";
 import { createHerdrClient } from "./herdr/client";
-import { createTerminalActivator } from "./os/terminal";
+import { createTerminalActivator, parseTerminalTab } from "./os/terminal";
+import { createHostTerminalResolver } from "./os/hostterminal";
 import { createAgentStore } from "./core/store";
 import { AgentSlotAction } from "./actions/slot";
 import { PagerAction } from "./actions/pager";
@@ -13,8 +14,14 @@ import type { Agent } from "./core/agents";
 streamDeck.logger.setLevel("info");
 
 const herdr = createHerdrClient();
-// undefined app → default (iTerm); set HERDR_DECK_TERMINAL_APP to override.
-const terminal = createTerminalActivator({ app: process.env.HERDR_DECK_TERMINAL_APP });
+// The host terminal is discovered from the attached herdr client, so neither env var is
+// normally needed; both are overrides. Setting HERDR_DECK_TERMINAL_APP skips discovery
+// (and with it exact-tab focusing), HERDR_DECK_TERMINAL_TAB opts into a Cmd-N keystroke.
+const terminal = createTerminalActivator({
+  resolver: createHostTerminalResolver({ onWarn: (m) => streamDeck.logger.info(m) }),
+  app: process.env.HERDR_DECK_TERMINAL_APP,
+  tab: parseTerminalTab(process.env.HERDR_DECK_TERMINAL_TAB),
+});
 const store = createAgentStore({ fetchAgents: () => herdr.listAgents() });
 
 const slot = new AgentSlotAction(store, herdr, terminal);

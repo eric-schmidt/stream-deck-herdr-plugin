@@ -101,7 +101,7 @@ your keys. The recommended 6-key Mini layout:
 
 - **Agent Slot** — set its `slotIndex` (0–4) in the Property Inspector. Each slot
   shows one agent.
-  - *Short press* → focus that agent's pane + raise the terminal.
+  - *Short press* → focus that agent's pane + raise the terminal on herdr's tab.
   - *Long press* → pin/unpin the agent.
 - **Pager** — jumps to the next agent needing attention, or pages the grid when
   none do.
@@ -111,9 +111,38 @@ and skip the pager.
 
 ## Configuration
 
+None required. The plugin works out which terminal herdr is displayed in — and
+which tab of it — by inspecting the attached `herdr` client process, so it follows
+you when you relaunch or reattach herdr somewhere else. Resolution order:
+
+1. `HERDR_DECK_TERMINAL_APP`, if set → `open -a <app>`.
+2. The client's `WARP_FOCUS_URL` → `open <url>`, which raises Warp **and** selects
+   herdr's exact tab in one step. No permissions, no keystrokes.
+3. The client's `__CFBundleIdentifier` → `open -b <bundle id>`, raising whichever
+   terminal herdr was launched from.
+4. Otherwise → `open -a Warp`.
+
+Both env vars are escape hatches for when that goes wrong:
+
 | Env var | Default | Purpose |
 |---------|---------|---------|
-| `HERDR_DECK_TERMINAL_APP` | `iTerm` | AppleScript name of the terminal app that hosts herdr. Set it to e.g. `Terminal`, `Ghostty`, or `WezTerm` so "press = focus" brings the right app to the front. |
+| `HERDR_DECK_TERMINAL_APP` | *(discovered)* | Pin the app to raise, by name — e.g. `Warp`, `Terminal`, `iTerm` (iTerm2), `Ghostty`, `WezTerm`. Note this **skips discovery**, so you lose exact-tab focusing: a bare app name cannot identify a tab. |
+| `HERDR_DECK_TERMINAL_TAB` | *(off)* | Select a tab by sending Cmd-*N* after raising the app, for terminals that expose no focus URL. Valid values are `1`–`8`; `0` or `off` leaves the active tab alone. Ignored when step 2 applies. |
+
+`HERDR_DECK_TERMINAL_TAB` is the only path that needs permissions: synthesizing a
+keypress requires **Elgato Stream Deck** under System Settings › Privacy &
+Security › Accessibility, plus the one-time Automation prompts. Without them the
+app is still raised and only the tab switch fails, logged rather than silently
+skipped. It is also positional — with several windows open, Cmd-*N* hits the most
+recently used one.
+
+Caveats worth knowing: `WARP_FOCUS_URL` is a real variable Warp exports but is not
+part of its documented URI scheme, so it could change. Warp does have a proper
+local control API (`app.activate`, `tab.activate`, `pane.focus`) inside the binary,
+but it is disabled and undocumented — when it ships publicly it should replace
+this. And because `ps` reports the environment a process was *exec'd* with,
+discovery works via the `herdr` client you launched, not via Warp's own tab shells,
+which export their `WARP_*` variables after exec.
 
 ## How it works
 
