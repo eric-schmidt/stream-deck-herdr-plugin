@@ -153,6 +153,14 @@ notifies both actions to re-render. All herdr I/O is isolated in
 thin glue. Key images are rendered as SVG data URIs for crisp text on the 80×80
 keys.
 
+macOS integration sits in `src/os/*`, also behind an injected `run`. Focusing a
+herdr pane only switches the pane *inside* herdr, so a key press additionally has
+to put the host terminal on screen: `hostterminal.ts` works out which terminal —
+and which tab of it — herdr is currently displayed in by reading the environment of
+the attached `herdr` client process, and `terminal.ts` raises it via `open`. That
+indirection is deliberate and the alternatives are non-obvious; the reasoning is in
+[ADR 0001](docs/adr/0001-discover-host-terminal-from-herdr-client.md).
+
 ## Development
 
 ```bash

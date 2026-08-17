@@ -9,6 +9,24 @@
 // `ps eww` reports). That matters: variables a shell exports after exec are invisible,
 // which is why Warp's own tab shells (`-zsh -g --no_rcs`) look empty while a `herdr`
 // launched from one of them carries the full set.
+//
+// Shelling out to `ps` to read another process's environment looks like a hack, and the
+// obvious "tidier" rewrites have all been tried and rejected — please read
+// docs/adr/0001-discover-host-terminal-from-herdr-client.md before replacing this with:
+//
+//   - `tell application "X" to activate` — cannot address a tab at all (Warp ships no
+//     AppleScript dictionary), and needs an Automation grant that a background plugin
+//     cannot reliably obtain.
+//   - a synthetic Cmd-N through System Events — positional (tab 1 of the frontmost
+//     window, not herdr's tab), depends on a user-rebindable keybinding, and requires
+//     Accessibility permission for Elgato Stream Deck. Kept only as an opt-in fallback,
+//     see HERDR_DECK_TERMINAL_TAB in src/os/terminal.ts.
+//   - reading the focus URL from a herdr *pane* — panes inherit the herdr *server's*
+//     environment, which records the terminal the server was first started from, not the
+//     one herdr is displayed in now.
+//
+// Revisit when Warp's local control API (`app.activate`, `tab.activate`, `pane.focus`)
+// ships publicly — it addresses tabs and panes directly and would replace this module.
 import { execFile } from "node:child_process";
 
 export type RunFn = (cmd: string, args: string[]) => Promise<string>;
