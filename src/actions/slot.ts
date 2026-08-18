@@ -11,7 +11,7 @@ import streamDeck, {
 import type { AgentStore } from "../core/store";
 import type { HerdrClient } from "../herdr/client";
 import type { TerminalActivator } from "../os/terminal";
-import { pageSlice, PAGE_SIZE } from "../core/pagination";
+import { pageSlice } from "../core/pagination";
 import { labelFor, type DisplayMode } from "../core/agents";
 import { renderKeySvg } from "../core/render";
 
@@ -61,7 +61,7 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
     this.#pressStart.delete(ev.action.id);
     const index = Number(ev.payload.settings.slotIndex ?? 0);
     const { agents, page } = this.store.getState();
-    const agent = pageSlice(agents, page, PAGE_SIZE)[index];
+    const agent = pageSlice(agents, page, this.store.getPageSize())[index];
     if (!agent) return;
     const longPress = start !== undefined && Date.now() - start >= LONG_PRESS_MS;
     if (longPress) {
@@ -92,7 +92,7 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
   // Flash the key currently showing this agent, if it is on the visible page.
   flash(paneId: string): void {
     const { agents, page } = this.store.getState();
-    const visible = pageSlice(agents, page, PAGE_SIZE);
+    const visible = pageSlice(agents, page, this.store.getPageSize());
     this.actions.forEach((a) => {
       if (!a.isKey()) return;
       const index = this.#slots.get(a.id) ?? 0;
@@ -102,7 +102,7 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
 
   renderAll(): void {
     const { agents, page } = this.store.getState();
-    const visible = pageSlice(agents, page, PAGE_SIZE);
+    const visible = pageSlice(agents, page, this.store.getPageSize());
     this.actions.forEach((a) => {
       if (!a.isKey()) return;
       const index = this.#slots.get(a.id) ?? 0;

@@ -37,6 +37,15 @@ const terminal = createTerminalActivator({
 });
 const store = createAgentStore({ fetchAgents: () => herdr.listAgents() });
 
+type GlobalSettings = { pageSize?: number };
+const applyGlobalSettings = (s: GlobalSettings) => {
+  if (typeof s.pageSize === "number" && s.pageSize >= 1) store.setPageSize(s.pageSize);
+};
+streamDeck.settings.onDidReceiveGlobalSettings<GlobalSettings>((ev) =>
+  applyGlobalSettings(ev.settings),
+);
+void streamDeck.settings.getGlobalSettings<GlobalSettings>().then(applyGlobalSettings);
+
 const slot = new AgentSlotAction(store, herdr, terminal);
 const pager = new PagerAction(store, herdr, terminal);
 

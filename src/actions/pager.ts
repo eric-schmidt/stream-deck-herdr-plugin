@@ -8,7 +8,7 @@ import streamDeck, {
 import type { AgentStore } from "../core/store";
 import type { HerdrClient } from "../herdr/client";
 import type { TerminalActivator } from "../os/terminal";
-import { pageCount, attentionAgents, worstAttention, PAGE_SIZE } from "../core/pagination";
+import { pageCount, attentionAgents, worstAttention } from "../core/pagination";
 import { renderPagerSvg, renderAttentionSvg } from "../core/render";
 
 // One key, two modes. When any agent is blocked or done it acts as "jump to the
@@ -62,7 +62,7 @@ export class PagerAction extends SingletonAction {
         ? renderAttentionSvg({ count: attention.length, attention: worstAttention(agents) })
         : renderPagerSvg({
             page,
-            total: pageCount(agents.length, PAGE_SIZE),
+            total: pageCount(agents.length, this.store.getPageSize()),
             attention: null,
             count: 0,
           });

@@ -11,6 +11,8 @@ export type AgentStore = {
   nextPage(): void;
   togglePin(paneId: string): void;
   isPinned(paneId: string): boolean;
+  getPageSize(): number;
+  setPageSize(n: number): void;
   pollNow(): Promise<void>;
   start(intervalMs?: number): void;
   stop(): void;
@@ -20,7 +22,7 @@ export function createAgentStore(opts: {
   fetchAgents: () => Promise<RawAgent[]>;
   pageSize?: number;
 }): AgentStore {
-  const pageSize = opts.pageSize ?? 5;
+  let pageSize = opts.pageSize ?? 5;
   let state: StoreState = { agents: [], page: 0 };
   // Full normalized list (includes idle) so pinned-idle agents can resurface;
   // `pinned` is paneIds in pin order (in-memory, reset on plugin restart).
@@ -67,6 +69,11 @@ export function createAgentStore(opts: {
       recompute();
     },
     isPinned: (paneId) => pinned.includes(paneId),
+    getPageSize: () => pageSize,
+    setPageSize(n) {
+      pageSize = Math.max(1, Math.floor(n));
+      recompute();
+    },
     async pollNow() {
       if (inFlight) return;
       inFlight = true;
