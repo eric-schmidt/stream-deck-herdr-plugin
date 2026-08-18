@@ -37,9 +37,10 @@ const terminal = createTerminalActivator({
 });
 const store = createAgentStore({ fetchAgents: () => herdr.listAgents() });
 
-type GlobalSettings = { pageSize?: number };
+type GlobalSettings = { pageSize?: number | string };
 const applyGlobalSettings = (s: GlobalSettings) => {
-  if (typeof s.pageSize === "number" && s.pageSize >= 1) store.setPageSize(s.pageSize);
+  const n = typeof s.pageSize === "string" ? parseInt(s.pageSize, 10) : s.pageSize;
+  if (typeof n === "number" && !isNaN(n) && n >= 1) store.setPageSize(n);
 };
 streamDeck.settings.onDidReceiveGlobalSettings<GlobalSettings>((ev) =>
   applyGlobalSettings(ev.settings),

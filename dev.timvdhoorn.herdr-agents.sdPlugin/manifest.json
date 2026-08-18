@@ -24,6 +24,7 @@
 		}
 	],
 	"UUID": "dev.timvdhoorn.herdr-agents",
+	"GlobalPropertyInspectorPath": "ui/global.html",
 	"Actions": [
 		{
 			"Name": "Agent Slot",
