@@ -1,5 +1,6 @@
 // src/herdr/client.ts
 import { execFile } from "node:child_process";
+import os from "node:os";
 import type { RawAgent } from "../core/agents";
 
 export type RunFn = (cmd: string, args: string[]) => Promise<string>;
@@ -8,7 +9,7 @@ export type RunFn = (cmd: string, args: string[]) => Promise<string>;
 // Prepend (not append): prefers the known-good Homebrew binary and avoids a leading
 // colon when PATH is empty, which would otherwise put CWD first and let a malicious
 // `herdr` in the working directory run ahead of the real one.
-const PATH_EXTRA = "/opt/homebrew/bin:/usr/local/bin";
+const PATH_EXTRA = `/opt/homebrew/bin:/usr/local/bin:${os.homedir()}/.local/bin`;
 
 const defaultRun: RunFn = (cmd, args) =>
   new Promise((resolve, reject) => {
