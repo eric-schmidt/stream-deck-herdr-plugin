@@ -117,6 +117,7 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
                 status: agent.status,
                 agent: agent.name,
                 pinned: this.store.isPinned(agent.paneId),
+                recentlyIdle: this.store.isRecentlyIdle(agent.paneId),
               }
             : null,
         ),

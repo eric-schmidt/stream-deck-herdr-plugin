@@ -2,7 +2,7 @@
 import { presentation, type AgentStatus } from "./status";
 import { AGENT_ICON } from "./agent-icons";
 
-export type KeyView = { label: string; status: AgentStatus; agent: string; pinned: boolean } | null;
+export type KeyView = { label: string; status: AgentStatus; agent: string; pinned: boolean; recentlyIdle?: boolean } | null;
 
 type PagerView = {
   page: number;
@@ -62,24 +62,6 @@ const BADGE_X = 8;
 const BADGE_Y = 8;
 const BADGE_SIZE = 30;
 
-function agentBadge(name: string): string {
-  const icon = AGENT_ICON[name.toLowerCase()];
-  if (icon) {
-    const [minX, minY, w, h] = icon.vb.split(/\s+/).map(Number);
-    const scale = BADGE_SIZE / Math.max(w, h);
-    const transform = `translate(${BADGE_X} ${BADGE_Y}) scale(${scale}) translate(${-minX} ${-minY})`;
-    return (
-      `<g transform="${transform}" fill="#ffffff" fill-opacity="0.85" fill-rule="evenodd">` +
-      icon.body +
-      `</g>`
-    );
-  }
-  return (
-    `<text x="10" y="28" font-family="sans-serif" font-size="18" font-weight="bold" ` +
-    `fill="#ffffff" fill-opacity="0.75" text-anchor="start">${escapeXml(agentCode(name))}</text>`
-  );
-}
-
 export function renderKeySvg(view: KeyView): string {
   if (!view) {
     // Empty slot: fully black ("screen off"), no marker.
@@ -89,18 +71,37 @@ export function renderKeySvg(view: KeyView): string {
         `</svg>`,
     );
   }
+  const dim = view.recentlyIdle === true;
   const { color, glyph } = presentation(view.status);
+  // Recently-idle slots use a dark muted background with reduced-opacity content
+  // so they're visible but clearly not active.
+  const bg = dim ? "#1a1f2e" : color;
+  const textFill = dim ? "#6B7280" : "#fff";
+  const glyphFill = dim ? "#374151" : "#fff";
+  const badgeOpacity = dim ? "0.35" : "0.85";
   const lines = wrapLabel(view.label, 8, 3);
   const firstY = 102 - (lines.length - 1) * 15;
   const labelSvg = lines
     .map((line, i) => {
       const y = firstY + i * 30;
-      // Stretch multi-char lines almost to the key edges; leave short fragments centered.
       const fit = line.length >= 4 ? ` textLength="142" lengthAdjust="spacingAndGlyphs"` : "";
-      return `<text x="72" y="${y}"${fit} font-family="sans-serif" font-size="26" fill="#fff" text-anchor="middle">${escapeXml(line)}</text>`;
+      return `<text x="72" y="${y}"${fit} font-family="sans-serif" font-size="26" fill="${textFill}" text-anchor="middle">${escapeXml(line)}</text>`;
     })
     .join("");
-  const badge = agentBadge(view.agent);
+  const icon = AGENT_ICON[view.agent.toLowerCase()];
+  const badge = icon
+    ? (() => {
+        const [minX, minY, w, h] = icon.vb.split(/\s+/).map(Number);
+        const scale = BADGE_SIZE / Math.max(w, h);
+        const transform = `translate(${BADGE_X} ${BADGE_Y}) scale(${scale}) translate(${-minX} ${-minY})`;
+        return (
+          `<g transform="${transform}" fill="#ffffff" fill-opacity="${badgeOpacity}" fill-rule="evenodd">` +
+          icon.body +
+          `</g>`
+        );
+      })()
+    : `<text x="10" y="28" font-family="sans-serif" font-size="18" font-weight="bold" ` +
+      `fill="#ffffff" fill-opacity="${badgeOpacity}" text-anchor="start">${escapeXml(agentCode(view.agent))}</text>`;
   // Pushpin marker (round head + needle) in the top-right corner when pinned.
   const pin = view.pinned
     ? `<g fill="#ffffff" fill-opacity="0.92">` +
@@ -110,8 +111,8 @@ export function renderKeySvg(view: KeyView): string {
     : "";
   return toDataUri(
     `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">` +
-      `<rect width="144" height="144" rx="16" fill="${color}"/>` +
-      `<text x="72" y="34" font-family="sans-serif" font-size="24" fill="#fff" text-anchor="middle">${glyph}</text>` +
+      `<rect width="144" height="144" rx="16" fill="${bg}"/>` +
+      `<text x="72" y="34" font-family="sans-serif" font-size="24" fill="${glyphFill}" text-anchor="middle">${glyph}</text>` +
       badge +
       pin +
       labelSvg +
