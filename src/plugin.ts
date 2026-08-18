@@ -1,7 +1,8 @@
 // src/plugin.ts
 import streamDeck from "@elgato/streamdeck";
 import { createHerdrClient } from "./herdr/client";
-import { createTerminalActivator } from "./os/terminal";
+import { createTerminalActivator, parseTerminalTab, TAB_UNSET } from "./os/terminal";
+import { createHostTerminalResolver } from "./os/hostterminal";
 import { createAgentStore } from "./core/store";
 import { AgentSlotAction } from "./actions/slot";
 import { PagerAction } from "./actions/pager";
@@ -13,8 +14,27 @@ import type { Agent } from "./core/agents";
 streamDeck.logger.setLevel("info");
 
 const herdr = createHerdrClient();
-// undefined app → default (iTerm); set HERDR_DECK_TERMINAL_APP to override.
-const terminal = createTerminalActivator({ app: process.env.HERDR_DECK_TERMINAL_APP });
+// The host terminal is discovered from the attached herdr client, so neither env var is
+// normally needed; both are overrides. Setting HERDR_DECK_TERMINAL_APP skips discovery
+// (and with it exact-tab focusing), HERDR_DECK_TERMINAL_TAB opts into a Cmd-N keystroke.
+const terminalApp = process.env.HERDR_DECK_TERMINAL_APP;
+const terminalTab = parseTerminalTab(process.env.HERDR_DECK_TERMINAL_TAB);
+// Say so when an override is in play. These variables are inherited from whatever
+// launched the Stream Deck app, so a stale value can silently defeat discovery — and
+// without a log line the only way to notice is to inspect process environments.
+if (terminalApp !== undefined) {
+  streamDeck.logger.info(
+    `host terminal: HERDR_DECK_TERMINAL_APP=${terminalApp} overrides discovery (no exact-tab focus)`,
+  );
+}
+if (terminalTab !== TAB_UNSET) {
+  streamDeck.logger.info(`host terminal: HERDR_DECK_TERMINAL_TAB=${terminalTab} keystroke enabled`);
+}
+const terminal = createTerminalActivator({
+  resolver: createHostTerminalResolver({ onWarn: (m) => streamDeck.logger.info(m) }),
+  app: terminalApp,
+  tab: terminalTab,
+});
 const store = createAgentStore({ fetchAgents: () => herdr.listAgents() });
 
 const slot = new AgentSlotAction(store, herdr, terminal);
