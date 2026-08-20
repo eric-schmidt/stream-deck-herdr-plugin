@@ -81,6 +81,10 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
     this.#displays.delete(ev.action.id);
     const { pageSize } = assignSlots([...this.#keys.values()]);
     if (pageSize !== null) this.store.setPageSize(pageSize);
+    // Re-render even though `setPageSize` may have done nothing: with two decks, removing a
+    // key from the smaller one re-ranks its survivors while the page size (the *max* across
+    // devices) is unchanged, so the store's early-return would leave stale images behind.
+    this.renderAll();
   }
 
   override onKeyUp(ev: KeyUpEvent<SlotSettings>): void {
