@@ -1,6 +1,6 @@
 // src/core/agents.test.ts
 import { test, expect } from "bun:test";
-import { normalize, labelFor, type RawAgent } from "./agents";
+import { normalize, labelFor, sortForPanel, type RawAgent } from "./agents";
 import fixture from "../../tests/fixtures/agent-list.json";
 
 const raw = fixture.result.agents as RawAgent[];
@@ -19,7 +19,42 @@ test("normalize preserves herdr's order and does not sort", () => {
     workspaceId: "w5",
     focused: false,
     terminalTitle: "",
+    stateChangeSeq: 0,
   });
+});
+
+// herdr's agent panel can be ordered two ways (`[ui] agent_panel_sort`), and the deck
+// mirrors whichever is set. The fixture holds one agent of each status, in herdr's list
+// order: idle, working, blocked, done.
+test("sortForPanel leaves spaces order untouched", () => {
+  const agents = normalize(raw);
+  expect(sortForPanel(agents, "spaces")).toBe(agents); // same array, not a copy
+  expect(sortForPanel(agents, "spaces").map((a) => a.paneId)).toEqual([
+    "w5:p1",
+    "wJ:p1",
+    "w7:p2",
+    "wG:p1",
+  ]);
+});
+
+test("sortForPanel priority is an attention queue: blocked, done, working, idle", () => {
+  const agents = normalize(raw);
+  expect(sortForPanel(agents, "priority").map((a) => a.paneId)).toEqual([
+    "w7:p2", // blocked
+    "wG:p1", // done
+    "wJ:p1", // working
+    "w5:p1", // idle
+  ]);
+});
+
+test("sortForPanel priority breaks ties on most-recently-changed", () => {
+  const agents = normalize([
+    { agent: "a", agent_status: "idle", cwd: "/a", pane_id: "p1", workspace_id: "w1", state_change_seq: 10 },
+    { agent: "b", agent_status: "idle", cwd: "/b", pane_id: "p2", workspace_id: "w1", state_change_seq: 99 },
+    { agent: "c", agent_status: "blocked", cwd: "/c", pane_id: "p3", workspace_id: "w1", state_change_seq: 1 },
+  ] as RawAgent[]);
+  // blocked wins on attention despite the lowest seq; the two idle agents order by recency.
+  expect(sortForPanel(agents, "priority").map((a) => a.paneId)).toEqual(["p3", "p2", "p1"]);
 });
 
 test("normalize coerces unknown status and drops entries without pane_id", () => {

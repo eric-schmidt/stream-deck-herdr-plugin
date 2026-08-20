@@ -18,10 +18,11 @@ agent that's waiting on you.
 - **Press = focus.** A short press runs `herdr agent focus` for that pane *and*
   raises the host terminal app, so the agent is actually on screen even if the
   terminal was in the background.
-- **Mirrors herdr.** The deck shows every agent in the same order herdr does, so
-  key 1 is herdr's first row. Nothing to configure: keys fill left-to-right,
-  top-to-bottom, and how many agents fit on a page is simply how many keys you
-  placed.
+- **Mirrors herdr.** The deck shows every agent in the same order herdr's agent
+  panel does — including its `priority` (attention queue) ordering if that is how
+  you have herdr set up — so key 1 is herdr's first row. Nothing to configure:
+  keys fill left-to-right, top-to-bottom, and how many agents fit on a page is
+  simply how many keys you placed.
 - **Morphing pager key.** When an agent needs attention *that this page cannot
   show*, it becomes a "jump to the next blocked/done agent" key (cycles on repeat
   presses) and shows a badge; otherwise it pages through the grid. One key, both
@@ -101,8 +102,8 @@ shows. The recommended 6-key Mini layout:
 ```
 
 - **Agent Slot** — shows one agent. Keys fill in reading order (left-to-right,
-  top-to-bottom) against herdr's own list, so the five keys above are herdr rows
-  1–5. Press one to focus that agent's pane and raise the terminal on herdr's tab.
+  top-to-bottom) against herdr's agent panel, so the five keys above are its
+  rows 1–5. Press one to focus that agent's pane and raise the terminal on herdr's tab.
   Its only setting is **Display**, choosing the project name or the terminal title
   as the label.
 - **Pager** — pages through the grid, and shows `page X/Y`. When an agent needs
@@ -165,9 +166,11 @@ the attached `herdr` client process, and `terminal.ts` raises it via `open`. Tha
 indirection is deliberate and the alternatives are non-obvious; the reasoning is in
 [ADR 0001](docs/adr/0001-discover-host-terminal-from-herdr-client.md).
 
-The agent list is herdr's, unmodified: `herdr agent list` returns agents in the
-order herdr displays them, and the plugin neither sorts nor filters it. Slot order
-comes from each key's coordinates on the deck. Why that is derived rather than
+The agent list is herdr's: `herdr agent list` returns agents in the order herdr's
+panel shows them under its default `spaces` sort, and the plugin does not filter
+it. If you set `[ui] agent_panel_sort = "priority"` in `~/.config/herdr/config.toml`,
+the plugin reads that and reproduces the attention queue, since the CLI always
+reports `spaces` order. Slot order comes from each key's coordinates on the deck. Why that is derived rather than
 configured — and what breaks in the alternatives — is in
 [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
 

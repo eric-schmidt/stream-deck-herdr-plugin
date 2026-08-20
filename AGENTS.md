@@ -27,7 +27,7 @@ Run `bun test` and `bunx tsc --noEmit` before reporting work done.
 | Path | Role |
 |------|------|
 | `src/core/*` | Pure logic — agents, status, pagination, transitions, SVG rendering. No I/O; where the unit tests concentrate. |
-| `src/herdr/*` | All herdr CLI/socket I/O (`herdr agent list`, `agent focus`, `notification show`). |
+| `src/herdr/*` | All herdr CLI/socket I/O (`herdr agent list`, `agent focus`, `notification show`) and reading `~/.config/herdr/config.toml`. |
 | `src/os/*` | macOS integration: locating and raising the host terminal. |
 | `src/actions/*` | Stream Deck action glue (key press, render, deriving slot order from key coordinates). Deliberately thin. |
 | `src/plugin.ts` | Entry point: reads env, wires dependencies, owns the store subscription. |
@@ -77,6 +77,15 @@ Key images are SVG data URIs, for crisp text on the 80×80 keys.
     used to do — scrambles it, because ids run `w0…w9`, `wA…wZ`, `w10`…: with 12 workspaces
     the first key showed herdr row 11. Cross-check with `herdr api snapshot` →
     `workspaces[].number`.
+  - **herdr's panel has two orders, and the CLI only gives you one.** `[ui] agent_panel_sort`
+    is `"spaces"` (default, alias `"workspaces"`) or `"priority"` (an attention queue), but
+    `herdr agent list` always returns *spaces* order — `agent.list` takes `EmptyParams`, and
+    `agent.view.set` would rewrite the user's own panel. So `sortForPanel` reproduces
+    `priority` locally: attention desc, then `state_change_seq` desc. That comparator is
+    undocumented and was confirmed against a live panel — if the deck disagrees with herdr,
+    suspect a herdr change before assuming a bug here. `src/herdr/config.ts` reads the
+    setting; note herdr ships the default config **commented out**, so parse an uncommented
+    line only.
   - **Slot index is the key's position**, from `KeyAction.coordinates` via `assignSlots`
     (`src/core/slots.ts`) — reading order, ranked per device. Page size is the number of
     placed keys. There is no `slotIndex` setting, and don't add one: a plugin-wide control
@@ -134,6 +143,8 @@ These are all things that have already burned a session.
 - *Which agent does a given key show, and why is there no slot setting?* → `assignSlots` in
   `src/core/slots.ts`, the do-not-sort note on `normalize` in `src/core/agents.ts`, and
   [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
+- *Why is the deck's order different from my herdr panel?* → `[ui] agent_panel_sort` in
+  `~/.config/herdr/config.toml`, reproduced by `sortForPanel` in `src/core/agents.ts`.
 
 ## Note on agent memory
 

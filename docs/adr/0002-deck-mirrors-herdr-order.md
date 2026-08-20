@@ -3,7 +3,8 @@
 - **Status:** Accepted — breaking change to Agent Slot settings; revisit when a layout needs
   a page size that differs from the key count
 - **Date:** 2026-08-19
-- **Affects:** `src/core/slots.ts`, `src/core/agents.ts` (`normalize`), `src/core/store.ts`,
+- **Affects:** `src/core/slots.ts`, `src/core/agents.ts` (`normalize`, `sortForPanel`),
+  `src/herdr/config.ts`, `src/core/store.ts`,
   `src/core/pagination.ts`, `src/actions/slot.ts`, `src/actions/pager.ts`,
   `dev.timvdhoorn.herdr-agents.sdPlugin/ui/slot.html`
 
@@ -37,6 +38,19 @@ manifest schema — each is `additionalProperties: false` — and `streamdeck pa
 A plugin-wide control can therefore only be rendered inside some *action's* inspector, where
 it appears on every Agent Slot key and reads as a per-key setting.
 
+**The agent panel has two orderings, and only one is what the CLI returns.** herdr's own
+config template documents them:
+
+```
+# Agent panel ordering: "spaces" (grouped by space) or "priority" (attention queue).
+# "workspaces" is accepted as an alias for "spaces".
+# agent_panel_sort = "spaces"
+```
+
+`herdr agent list` always returns **spaces** order. A user on `priority` therefore sees a
+different order in the panel than the CLI reports — which is the second way the deck could
+disagree with the terminal, independent of the sorting bug above.
+
 **Slot order was being asked of the user, but the plugin already knows it.**
 `KeyAction.coordinates` reports `{row, column}`, and `herdr agent list` already returns
 agents in herdr's own display order — verifiable against `herdr api snapshot`, where the
@@ -46,8 +60,11 @@ agents array maps 1:1 onto `workspaces[].number`.
 
 **The deck is a window onto herdr's list, and nothing about the grid is configured.**
 
-1. **`normalize` preserves herdr's order.** No sorting. herdr's array order *is* the display
-   order, so deck position N is herdr row N.
+1. **`normalize` preserves herdr's order.** No sorting of its own. herdr's array order *is*
+   the panel's order under the default `spaces` sort, so deck position N is herdr row N.
+   When `agent_panel_sort = "priority"`, `sortForPanel` reproduces the attention queue
+   instead — attention first, then most-recently-changed. The setting is read from
+   `~/.config/herdr/config.toml` on each refresh (`src/herdr/config.ts`).
 2. **Slot index is the key's position.** Keys are grouped by device, sorted by
    `(row, column)`, and ranked — reading order, left-to-right and top-to-bottom
    (`assignSlots` in `src/core/slots.ts`). `slotIndex` is gone from the property inspector,
@@ -59,6 +76,24 @@ agents array maps 1:1 onto `workspaces[].number`.
    herdr's order.
 6. **The pager keys off *off-page* attention.** It jumps only when something needing
    attention is not visible; otherwise it pages.
+
+### Reproducing the panel sort
+
+herdr cannot sort this for us. `agent.list` takes `EmptyParams` — no sort argument — and
+while `agent.view.set` accepts a sort, it takes a required `source` and has a matching
+`agent.view.clear`, so it configures the user's *own* panel; a Stream Deck plugin must not
+rewrite someone's terminal UI to render a key. So the order is reproduced locally.
+
+The ranking mirrors herdr's builtin sort fields, which its API schema enumerates as
+`workspace_order | tab_order | pane_order | attention | status | agent | seen |
+state_change_seq`. `priority` is `attention` descending, tie-broken by `state_change_seq`
+descending — confirmed against a live panel. The comparator itself is undocumented, so a
+future mismatch is more likely a herdr change than a bug here; `sortForPanel` says so in a
+comment.
+
+Reading the config is deliberately a one-key regex rather than a TOML parse: herdr ships its
+default config with every line **commented out**, so a naive search reads the commented
+example as the live value and silently picks the wrong order. That case is covered by a test.
 
 ### The load-bearing detail
 
@@ -145,8 +180,12 @@ empty array. Safe only by accident today.
   then stale but harmless, since no slot key is visible.
 - Page size can no longer differ from the key count. A user wanting 3 agents per page across
   5 physical keys cannot express that.
-- Only workspace `number` order is exposed by herdr. If its UI ever offers a sort that does
-  not renumber workspaces, this could not mirror it.
+- The `priority` comparator is reproduced from observed behaviour, not a documented contract.
+  If herdr changes how its attention queue ranks or tie-breaks, the deck drifts until this is
+  updated. `spaces` mode is safe, since it is simply herdr's own list order.
+- The config file is re-read every few seconds rather than watched, so a
+  `herdr server reload-config` takes effect on the deck within one refresh rather than
+  instantly.
 - Losing pinning means no way to hold one agent in a fixed position. The pager's
   jump-to-attention covers the case that motivated it.
 
@@ -164,6 +203,9 @@ field, which would let the mirror follow a user-chosen sort rather than workspac
 - `normalize` in `src/core/agents.ts` — the do-not-sort rule and why
 - `pageCount` / `pageSlice` / `offPageAttentionAgents` in `src/core/pagination.ts` — the
   `null`-is-unpaged and off-page contracts
+- `sortForPanel` in `src/core/agents.ts` and `parseAgentPanelSort` in `src/herdr/config.ts`
+- herdr's sort vocabulary: `herdr api schema --json` → `AgentViewBuiltinSortField`; the mode
+  itself is `[ui] agent_panel_sort` in `~/.config/herdr/config.toml`
 - Ordering is checkable at runtime: `herdr api snapshot` → `workspaces[].number` versus the
   order of `herdr agent list`
 - Manifest schema: `node_modules/@elgato/schemas/streamdeck/plugins/manifest.json`, where the

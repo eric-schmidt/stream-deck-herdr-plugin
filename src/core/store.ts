@@ -1,5 +1,5 @@
 // src/core/store.ts
-import { normalize, type Agent, type RawAgent } from "./agents";
+import { normalize, sortForPanel, type Agent, type AgentPanelSort, type RawAgent } from "./agents";
 import { clampPage, pageCount } from "./pagination";
 
 export type StoreState = { agents: Agent[]; page: number };
@@ -12,6 +12,8 @@ export type AgentStore = {
   // null until an Agent Slot key reports its position; see `assignSlots` in ./slots.ts.
   getPageSize(): number | null;
   setPageSize(n: number): void;
+  // Mirrors herdr's `[ui] agent_panel_sort`; see src/herdr/config.ts.
+  setSortMode(sort: AgentPanelSort): void;
   pollNow(): Promise<void>;
   start(intervalMs?: number): void;
   stop(): void;
@@ -20,11 +22,13 @@ export type AgentStore = {
 export function createAgentStore(opts: {
   fetchAgents: () => Promise<RawAgent[]>;
   pageSize?: number;
+  sortMode?: AgentPanelSort;
 }): AgentStore {
   // Inferred from the slot keys the user has placed, so it is unknown until one reports.
   let pageSize: number | null = opts.pageSize ?? null;
   let state: StoreState = { agents: [], page: 0 };
   let allAgents: Agent[] = [];
+  let sortMode: AgentPanelSort = opts.sortMode ?? "spaces";
   let hasLastGood = false;
   let failStreak = 0;
   let inFlight = false;
@@ -36,14 +40,12 @@ export function createAgentStore(opts: {
     state = { ...state, ...next };
     emit();
   };
-  // The deck mirrors herdr: every agent, in herdr's order, idle included. Nothing is
-  // filtered or reordered here, so deck position N is herdr row N. Only the page is
-  // re-clamped, in case the list shrank.
+  // The deck mirrors herdr's agent panel: every agent, idle included, in the order that
+  // panel shows them — so deck position N is herdr row N. Nothing is filtered; the only
+  // reordering is whichever sort herdr itself is set to.
   const recompute = () => {
-    set({
-      agents: allAgents,
-      page: clampPage(state.page, pageCount(allAgents.length, pageSize)),
-    });
+    const agents = sortForPanel(allAgents, sortMode);
+    set({ agents, page: clampPage(state.page, pageCount(agents.length, pageSize)) });
   };
 
   const store: AgentStore = {
@@ -69,6 +71,11 @@ export function createAgentStore(opts: {
       const next = Math.max(1, Math.floor(n));
       if (next === pageSize) return;
       pageSize = next;
+      recompute();
+    },
+    setSortMode(sort) {
+      if (sort === sortMode) return; // polled on every refresh; only re-render on a change
+      sortMode = sort;
       recompute();
     },
     async pollNow() {

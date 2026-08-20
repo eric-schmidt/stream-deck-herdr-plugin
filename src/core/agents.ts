@@ -10,6 +10,7 @@ export type RawAgent = {
   workspace_id?: string;
   tab_id?: string;
   terminal_title_stripped?: string;
+  state_change_seq?: number;
 };
 
 export type Agent = {
@@ -20,6 +21,8 @@ export type Agent = {
   workspaceId: string;
   focused: boolean;
   terminalTitle: string;
+  // herdr's monotonic counter for the last state change; the tiebreak in "priority" order.
+  stateChangeSeq: number;
 };
 
 const KNOWN: ReadonlySet<string> = new Set(["idle", "working", "blocked", "done", "unknown"]);
@@ -38,17 +41,48 @@ function toAgent(r: RawAgent): Agent | null {
     workspaceId: typeof r.workspace_id === "string" ? r.workspace_id : "",
     focused: r.focused === true,
     terminalTitle: typeof r.terminal_title_stripped === "string" ? r.terminal_title_stripped : "",
+    stateChangeSeq: typeof r.state_change_seq === "number" ? r.state_change_seq : 0,
   };
 }
 
-// Order is herdr's, deliberately: `herdr agent list` returns agents in the order herdr
-// itself displays them (verifiable against `herdr api snapshot` — the agents array maps
-// 1:1 onto `workspaces[].number`), so the deck mirrors what you see in the terminal and
-// key N is herdr row N. Do NOT sort here. Sorting lexically by workspaceId — which this
+// Order is herdr's, deliberately: `herdr agent list` returns agents in the order herdr's
+// agent panel shows them under its default "spaces" sort, so the deck mirrors the terminal
+// and key N is herdr row N. Do NOT sort here. Sorting lexically by workspaceId — which this
 // used to do — scrambles it, because ids run w0…w9, wA…wZ, w10, w11…: with 12 workspaces
 // the deck showed herdr row 11 on its first key. See ADR 0002.
 export function normalize(raw: RawAgent[]): Agent[] {
   return raw.map(toAgent).filter((a): a is Agent => a !== null);
+}
+
+// herdr's `[ui] agent_panel_sort`. "workspaces" is herdr's own accepted alias for "spaces".
+export type AgentPanelSort = "spaces" | "priority";
+
+// How much an agent wants you: herdr's builtin `attention` sort field, which its "priority"
+// mode (an "attention queue", per herdr's own config comment) orders by.
+const ATTENTION: Record<string, number> = {
+  blocked: 3,
+  done: 2,
+  working: 1,
+  idle: 0,
+  unknown: 0,
+};
+
+// Reproduce herdr's agent-panel ordering so the deck matches what the panel shows.
+//
+// "spaces" is herdr's list order, already correct — return it untouched.
+// "priority" is attention first, then most-recently-changed. `agent.list` takes EmptyParams
+// (no sort), and `agent.view.set` would mutate the user's own panel, so herdr cannot sort
+// this for us and it has to be reproduced here. Confirmed against a live panel; the
+// comparator is undocumented, so treat a mismatch as a herdr change rather than a bug here.
+export function sortForPanel(agents: Agent[], sort: AgentPanelSort): Agent[] {
+  if (sort === "spaces") return agents;
+  return agents
+    .slice()
+    .sort(
+      (a, b) =>
+        (ATTENTION[b.status] ?? 0) - (ATTENTION[a.status] ?? 0) ||
+        b.stateChangeSeq - a.stateChangeSeq,
+    );
 }
 
 function basename(path: string): string {

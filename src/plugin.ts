@@ -1,6 +1,7 @@
 // src/plugin.ts
 import streamDeck from "@elgato/streamdeck";
 import { createHerdrClient } from "./herdr/client";
+import { createHerdrConfig } from "./herdr/config";
 import { createTerminalActivator, parseTerminalTab, TAB_UNSET } from "./os/terminal";
 import { createHostTerminalResolver } from "./os/hostterminal";
 import { createAgentStore } from "./core/store";
@@ -37,6 +38,13 @@ const terminal = createTerminalActivator({
 });
 const store = createAgentStore({ fetchAgents: () => herdr.listAgents() });
 
+// The deck mirrors herdr's agent panel, which can be ordered two ways, so the plugin has to
+// follow whichever `[ui] agent_panel_sort` is set to. Re-read alongside each refresh rather
+// than once at startup: `herdr server reload-config` can change it while the plugin runs,
+// and `setSortMode` no-ops unless the value actually changed.
+const herdrConfig = createHerdrConfig({ onWarn: (m) => streamDeck.logger.info(m) });
+const syncSortMode = async (): Promise<void> => store.setSortMode(await herdrConfig.agentPanelSort());
+
 const slot = new AgentSlotAction(store, herdr, terminal);
 const pager = new PagerAction(store, herdr, terminal);
 
@@ -62,6 +70,7 @@ const refresh = (): void => {
   if (pending) return;
   pending = setTimeout(() => {
     pending = null;
+    void syncSortMode();
     void store.pollNow();
   }, 150);
 };
@@ -72,5 +81,7 @@ streamDeck.actions.registerAction(slot);
 streamDeck.actions.registerAction(pager);
 
 streamDeck.connect();
+void syncSortMode();
 store.start(3000); // safety net; socket events drive the fast path
+setInterval(() => void syncSortMode(), 3000); // picks up `herdr server reload-config`
 events.start();
