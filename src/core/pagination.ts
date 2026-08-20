@@ -32,8 +32,9 @@ function isOffPage(index: number, page: number, pageSize: number): boolean {
   return index < start || index >= start + pageSize;
 }
 
-// Off-page attention drives the pager: an agent that already has a key on the visible page
-// needs no jump — you can see it and press it. When unpaged (null) nothing is off-page.
+// Off-page attention drives the pager's badge: an agent that already has a key on the
+// visible page needs no badge — you can see it and press it. When unpaged (null) nothing
+// is off-page.
 export function offPageWorstAttention(
   agents: Agent[],
   page: number,
@@ -48,25 +49,17 @@ export function offPageWorstAttention(
   }, null);
 }
 
-// The agents the pager cycles through: needing attention, and not visible on this page.
-export function offPageAttentionAgents(
-  agents: Agent[],
-  page: number,
-  pageSize: number | null,
-): Agent[] {
-  if (pageSize === null) return [];
-  return agents.filter(
-    (agent, index) =>
-      isOffPage(index, page, pageSize) && (ATTENTION_RANK[agent.status] ?? 0) > 0,
-  );
-}
-
+// How many the badge stands for: when more than one, it shows the count instead of a glyph.
 export function offPageAttentionCount(
   agents: Agent[],
   page: number,
   pageSize: number | null,
 ): number {
-  return offPageAttentionAgents(agents, page, pageSize).length;
+  if (pageSize === null) return 0;
+  return agents.filter(
+    (agent, index) =>
+      isOffPage(index, page, pageSize) && (ATTENTION_RANK[agent.status] ?? 0) > 0,
+  ).length;
 }
 
 

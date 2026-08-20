@@ -1,7 +1,8 @@
 # ADR 0002 — The deck mirrors herdr; slots are positional, not configured
 
 - **Status:** Accepted — breaking change to Agent Slot settings; revisit when a layout needs
-  a page size that differs from the key count
+  a page size that differs from the key count. **Decision point 6 (the pager jumps to
+  off-page attention) is superseded**; see the update at the end of this record.
 - **Date:** 2026-08-19
 - **Affects:** `src/core/slots.ts`, `src/core/agents.ts` (`normalize`, `sortForPanel`, `labelFor`),
   `src/herdr/client.ts` (`listWorkspaces`),
@@ -241,3 +242,30 @@ field, which would let the mirror follow a user-chosen sort rather than workspac
 - Supersedes PR #4 (`feat: make page size configurable via global plugin settings`) and
   PR #5 (`feat: show recently-used idle sessions`), the latter subsumed by showing idle
   agents in herdr order
+
+## Update — 2026-08-20: the pager only pages
+
+Decision point 6 no longer holds. `PagerAction.onKeyDown` always calls `nextPage()`, and
+off-page attention now drives nothing but the badge the key renders.
+
+The jump was written when the deck showed an arbitrary subset of agents in an arbitrary
+order, so "something needs you and you cannot see it" was a genuine dead end worth a
+shortcut. Mirroring herdr removed that premise: under `[ui] agent_panel_sort = "priority"`
+attention already sorts to the top, so the agents the jump targets are the ones on page 1 —
+and a press meant to page kept re-focusing them instead. Nothing on the key said so, either:
+a key reading `▶ 1/3` that does not page is simply wrong.
+
+Consequences:
+
+- `offPageAttentionAgents` is deleted and `offPageAttentionCount` no longer derives from it,
+  so the References entry naming it below is stale. `offPageWorstAttention` /
+  `offPageAttentionCount` stay load-bearing — the badge still reports what this page cannot
+  show, as a read-out rather than a mode.
+- `PagerAction` takes the store alone; it no longer needs `HerdrClient` or
+  `TerminalActivator`.
+- The "losing pinning" consequence above loses its consolation. With neither pinning nor a
+  jump, an agent on a page you are not looking at is reached only by paging to it. Accepted:
+  herdr's own `priority` sort is the supported way to make an agent surface, and the deck
+  mirrors it.
+
+Covered by `src/actions/pager.test.ts`.

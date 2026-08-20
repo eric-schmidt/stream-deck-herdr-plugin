@@ -6,7 +6,6 @@ import {
   pageSlice,
   offPageWorstAttention,
   offPageAttentionCount,
-  offPageAttentionAgents,
 } from "./pagination";
 import type { Agent } from "./agents";
 
@@ -72,16 +71,6 @@ test("idle/unknown off-page produce no badge", () => {
   expect(offPageAttentionCount(agents, 0, 5)).toBe(0);
 });
 
-test("offPageAttentionAgents lists what the pager cycles through, in order", () => {
-  const agents = [
-    ...["p0", "p1", "p2", "p3", "p4"].map((p) => mk("idle", p)), // page 0
-    mk("working", "p5"),
-    mk("done", "p6"),
-    mk("blocked", "p7"),
-  ];
-  expect(offPageAttentionAgents(agents, 0, 5).map((a) => a.paneId)).toEqual(["p6", "p7"]);
-});
-
 // A null pageSize means no slot key has reported yet: nothing is paged, so it is all one
 // page holding every agent — and nothing can be off-page.
 test("a null pageSize means unpaged, and nothing is off-page", () => {
@@ -91,5 +80,4 @@ test("a null pageSize means unpaged, and nothing is off-page", () => {
   expect(pageSlice(agents, 0, null).map((a) => a.paneId)).toEqual(["a", "b", "c"]);
   expect(offPageAttentionCount(agents, 0, null)).toBe(0);
   expect(offPageWorstAttention(agents, 0, null)).toBe(null);
-  expect(offPageAttentionAgents(agents, 0, null)).toEqual([]);
 });

@@ -6,6 +6,8 @@ dist/
 # Stream Deck build + log artifacts
 *.sdPlugin/bin
 *.sdPlugin/logs
+# The SDK's logger creates ./logs on import, so `bun test` makes one outside the plugin dir.
+/logs
 
 # AI tooling + planning artifacts (kept local, not published)
 .claude/

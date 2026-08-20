@@ -49,7 +49,7 @@ const herdrConfig = createHerdrConfig({ onWarn: (m) => streamDeck.logger.info(m)
 const syncSortMode = async (): Promise<void> => store.setSortMode(await herdrConfig.agentPanelSort());
 
 const slot = new AgentSlotAction(store, herdr, terminal);
-const pager = new PagerAction(store, herdr, terminal);
+const pager = new PagerAction(store);
 
 let prevAgents: Agent[] | null = null;
 
