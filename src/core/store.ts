@@ -1,5 +1,5 @@
 // src/core/store.ts
-import { normalize, orderForDisplay, type Agent, type RawAgent } from "./agents";
+import { normalize, type Agent, type RawAgent } from "./agents";
 import { clampPage, pageCount } from "./pagination";
 
 export type StoreState = { agents: Agent[]; page: number };
@@ -9,8 +9,9 @@ export type AgentStore = {
   subscribe(fn: (s: StoreState) => void): () => void;
   setPage(next: number): void;
   nextPage(): void;
-  togglePin(paneId: string): void;
-  isPinned(paneId: string): boolean;
+  // null until an Agent Slot key reports its position; see `assignSlots` in ./slots.ts.
+  getPageSize(): number | null;
+  setPageSize(n: number): void;
   pollNow(): Promise<void>;
   start(intervalMs?: number): void;
   stop(): void;
@@ -20,12 +21,10 @@ export function createAgentStore(opts: {
   fetchAgents: () => Promise<RawAgent[]>;
   pageSize?: number;
 }): AgentStore {
-  const pageSize = opts.pageSize ?? 5;
+  // Inferred from the slot keys the user has placed, so it is unknown until one reports.
+  let pageSize: number | null = opts.pageSize ?? null;
   let state: StoreState = { agents: [], page: 0 };
-  // Full normalized list (includes idle) so pinned-idle agents can resurface;
-  // `pinned` is paneIds in pin order (in-memory, reset on plugin restart).
   let allAgents: Agent[] = [];
-  let pinned: string[] = [];
   let hasLastGood = false;
   let failStreak = 0;
   let inFlight = false;
@@ -37,11 +36,14 @@ export function createAgentStore(opts: {
     state = { ...state, ...next };
     emit();
   };
-  // Re-derive the displayed list (pinned-first, idle hidden) from the current
-  // raw list + pins, clamping the page to the new length.
+  // The deck mirrors herdr: every agent, in herdr's order, idle included. Nothing is
+  // filtered or reordered here, so deck position N is herdr row N. Only the page is
+  // re-clamped, in case the list shrank.
   const recompute = () => {
-    const agents = orderForDisplay(allAgents, pinned);
-    set({ agents, page: clampPage(state.page, pageCount(agents.length, pageSize)) });
+    set({
+      agents: allAgents,
+      page: clampPage(state.page, pageCount(allAgents.length, pageSize)),
+    });
   };
 
   const store: AgentStore = {
@@ -60,13 +62,15 @@ export function createAgentStore(opts: {
       const pages = pageCount(state.agents.length, pageSize);
       set({ page: (state.page + 1) % pages });
     },
-    togglePin(paneId) {
-      pinned = pinned.includes(paneId)
-        ? pinned.filter((id) => id !== paneId)
-        : [...pinned, paneId];
+    getPageSize: () => pageSize,
+    setPageSize(n) {
+      // Slot keys appear one at a time, so this is called repeatedly with the same value;
+      // bail early rather than re-render every key on each no-op.
+      const next = Math.max(1, Math.floor(n));
+      if (next === pageSize) return;
+      pageSize = next;
       recompute();
     },
-    isPinned: (paneId) => pinned.includes(paneId),
     async pollNow() {
       if (inFlight) return;
       inFlight = true;

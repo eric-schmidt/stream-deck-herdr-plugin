@@ -8,13 +8,19 @@ import streamDeck, {
 import type { AgentStore } from "../core/store";
 import type { HerdrClient } from "../herdr/client";
 import type { TerminalActivator } from "../os/terminal";
-import { pageCount, attentionAgents, worstAttention, PAGE_SIZE } from "../core/pagination";
-import { renderPagerSvg, renderAttentionSvg } from "../core/render";
+import {
+  pageCount,
+  offPageWorstAttention,
+  offPageAttentionCount,
+  offPageAttentionAgents,
+} from "../core/pagination";
+import { renderPagerSvg } from "../core/render";
 
-// One key, two modes. When any agent is blocked or done it acts as "jump to the
-// next agent needing attention" (focus + cycle on repeat presses); otherwise it
-// pages through the agent grid. The rendered icon shows which mode is active, so
-// a single key covers both jobs on the 6-key Mini.
+// One key, two modes, keyed on *off-page* attention. An agent that already has a key on
+// the visible page needs no jump — it is on screen and pressable — so only attention that
+// is off-page turns this into "jump to the next agent needing attention" (focus + cycle on
+// repeat presses). Otherwise it pages. Testing all agents instead, as this once did, meant
+// a single blocked agent anywhere permanently disabled paging.
 @action({ UUID: "dev.timvdhoorn.herdr-agents.pager" })
 export class PagerAction extends SingletonAction {
   // paneId we last jumped to, so repeated presses cycle through attention agents.
@@ -33,7 +39,8 @@ export class PagerAction extends SingletonAction {
   }
 
   override async onKeyDown(_ev: KeyDownEvent): Promise<void> {
-    const list = attentionAgents(this.store.getState().agents);
+    const { agents, page } = this.store.getState();
+    const list = offPageAttentionAgents(agents, page, this.store.getPageSize());
     if (list.length === 0) {
       this.store.nextPage();
       return;
@@ -54,18 +61,17 @@ export class PagerAction extends SingletonAction {
     }
   }
 
+  // Always a pager; the badge (which renderPagerSvg has always supported) reports agents
+  // needing attention that this page cannot show.
   renderAll(): void {
     const { agents, page } = this.store.getState();
-    const attention = attentionAgents(agents);
-    const svg =
-      attention.length > 0
-        ? renderAttentionSvg({ count: attention.length, attention: worstAttention(agents) })
-        : renderPagerSvg({
-            page,
-            total: pageCount(agents.length, PAGE_SIZE),
-            attention: null,
-            count: 0,
-          });
+    const pageSize = this.store.getPageSize();
+    const svg = renderPagerSvg({
+      page,
+      total: pageCount(agents.length, pageSize),
+      attention: offPageWorstAttention(agents, page, pageSize),
+      count: offPageAttentionCount(agents, page, pageSize),
+    });
     this.actions.forEach((a) => {
       if (a.isKey()) void a.setImage(svg);
     });

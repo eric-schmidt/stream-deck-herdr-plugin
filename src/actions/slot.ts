@@ -5,27 +5,24 @@ import streamDeck, {
   type WillAppearEvent,
   type WillDisappearEvent,
   type DidReceiveSettingsEvent,
-  type KeyDownEvent,
   type KeyUpEvent,
 } from "@elgato/streamdeck";
 import type { AgentStore } from "../core/store";
 import type { HerdrClient } from "../herdr/client";
 import type { TerminalActivator } from "../os/terminal";
-import { pageSlice, PAGE_SIZE } from "../core/pagination";
+import { pageSlice } from "../core/pagination";
+import { assignSlots, type SlotKey } from "../core/slots";
 import { labelFor, type DisplayMode } from "../core/agents";
 import { renderKeySvg } from "../core/render";
 
-type SlotSettings = { slotIndex?: number; display?: DisplayMode };
-
-// Press-length threshold: below this a key press focuses the agent, at/above it
-// the press toggles a pin.
-const LONG_PRESS_MS = 400;
+type SlotSettings = { display?: DisplayMode };
 
 @action({ UUID: "dev.timvdhoorn.herdr-agents.slot" })
 export class AgentSlotAction extends SingletonAction<SlotSettings> {
-  readonly #slots = new Map<string, number>(); // action instance id -> slot index
+  // Where each key physically sits. Slot order is derived from this, never configured:
+  // see `assignSlots` in src/core/slots.ts and ADR 0002.
+  readonly #keys = new Map<string, SlotKey>();
   readonly #displays = new Map<string, DisplayMode>(); // action instance id -> display mode
-  readonly #pressStart = new Map<string, number>(); // action instance id -> keydown timestamp
 
   constructor(
     private readonly store: AgentStore,
@@ -35,42 +32,64 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
     super();
   }
 
+  // A key inside a multi-action has no coordinates — and could not usefully render a live
+  // agent anyway — so it is dropped rather than handed a slot.
+  #track(
+    actionId: string,
+    deviceId: string,
+    coordinates: { row: number; column: number } | undefined,
+  ): void {
+    if (coordinates === undefined) {
+      this.#keys.delete(actionId);
+    } else {
+      this.#keys.set(actionId, {
+        id: actionId,
+        deviceId,
+        row: coordinates.row,
+        column: coordinates.column,
+      });
+    }
+    const { pageSize } = assignSlots([...this.#keys.values()]);
+    // Keep the last known size when nothing is placed, so switching to a profile with no
+    // slot keys does not make the pager advertise a page count from thin air.
+    if (pageSize !== null) this.store.setPageSize(pageSize);
+  }
+
+  #indices(): Map<string, number> {
+    return assignSlots([...this.#keys.values()]).indexById;
+  }
+
   override onWillAppear(ev: WillAppearEvent<SlotSettings>): void {
-    this.#slots.set(ev.action.id, Number(ev.payload.settings.slotIndex ?? 0));
     this.#displays.set(ev.action.id, ev.payload.settings.display ?? "project");
+    this.#track(
+      ev.action.id,
+      ev.action.device.id,
+      ev.action.isKey() ? ev.action.coordinates : undefined,
+    );
     this.renderAll();
   }
 
+  // Only `display` is a setting now; position comes from the deck, so nothing here can
+  // change a key's slot.
   override onDidReceiveSettings(ev: DidReceiveSettingsEvent<SlotSettings>): void {
-    this.#slots.set(ev.action.id, Number(ev.payload.settings.slotIndex ?? 0));
     this.#displays.set(ev.action.id, ev.payload.settings.display ?? "project");
     this.renderAll();
   }
 
   override onWillDisappear(ev: WillDisappearEvent<SlotSettings>): void {
-    this.#slots.delete(ev.action.id);
+    this.#keys.delete(ev.action.id);
     this.#displays.delete(ev.action.id);
-  }
-
-  override onKeyDown(ev: KeyDownEvent<SlotSettings>): void {
-    this.#pressStart.set(ev.action.id, Date.now());
+    const { pageSize } = assignSlots([...this.#keys.values()]);
+    if (pageSize !== null) this.store.setPageSize(pageSize);
   }
 
   override onKeyUp(ev: KeyUpEvent<SlotSettings>): void {
-    const start = this.#pressStart.get(ev.action.id);
-    this.#pressStart.delete(ev.action.id);
-    const index = Number(ev.payload.settings.slotIndex ?? 0);
+    const index = this.#indices().get(ev.action.id);
+    if (index === undefined) return;
     const { agents, page } = this.store.getState();
-    const agent = pageSlice(agents, page, PAGE_SIZE)[index];
+    const agent = pageSlice(agents, page, this.store.getPageSize())[index];
     if (!agent) return;
-    const longPress = start !== undefined && Date.now() - start >= LONG_PRESS_MS;
-    if (longPress) {
-      // Long-press pins: the agent jumps to slot 1 (next pin beside it) and
-      // stays visible even when idle. The store emit re-renders all keys.
-      this.store.togglePin(agent.paneId);
-    } else {
-      void this.#focus(agent.paneId);
-    }
+    void this.#focus(agent.paneId);
   }
 
   async #focus(paneId: string): Promise<void> {
@@ -92,22 +111,24 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
   // Flash the key currently showing this agent, if it is on the visible page.
   flash(paneId: string): void {
     const { agents, page } = this.store.getState();
-    const visible = pageSlice(agents, page, PAGE_SIZE);
+    const visible = pageSlice(agents, page, this.store.getPageSize());
+    const indexById = this.#indices();
     this.actions.forEach((a) => {
       if (!a.isKey()) return;
-      const index = this.#slots.get(a.id) ?? 0;
-      if (visible[index]?.paneId === paneId) void a.showAlert();
+      const index = indexById.get(a.id);
+      if (index !== undefined && visible[index]?.paneId === paneId) void a.showAlert();
     });
   }
 
   renderAll(): void {
     const { agents, page } = this.store.getState();
-    const visible = pageSlice(agents, page, PAGE_SIZE);
+    const visible = pageSlice(agents, page, this.store.getPageSize());
+    const indexById = this.#indices();
     this.actions.forEach((a) => {
       if (!a.isKey()) return;
-      const index = this.#slots.get(a.id) ?? 0;
+      const index = indexById.get(a.id);
       const display = this.#displays.get(a.id) ?? "project";
-      const agent = visible[index];
+      const agent = index === undefined ? undefined : visible[index];
       void a.setTitle("");
       void a.setImage(
         renderKeySvg(
@@ -116,7 +137,6 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
                 label: labelFor(agent, agents, display),
                 status: agent.status,
                 agent: agent.name,
-                pinned: this.store.isPinned(agent.paneId),
               }
             : null,
         ),
