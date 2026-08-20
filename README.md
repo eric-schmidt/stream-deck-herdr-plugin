@@ -25,14 +25,14 @@ agent that's waiting on you.
   you have herdr set up — so key 1 is herdr's first row. Nothing to configure:
   keys fill left-to-right, top-to-bottom, and how many agents fit on a page is
   simply how many keys you placed.
-- **Morphing pager key.** When an agent needs attention *that this page cannot
-  show*, it becomes a "jump to the next blocked/done agent" key (cycles on repeat
-  presses) and shows a badge; otherwise it pages through the grid. One key, both
-  jobs — fits the 6-key Mini.
+- **One pager key, two jobs.** It always reads as a pager (`▶` over `page/total`),
+  but badges any blocked or done agent *that the visible page cannot show* — and
+  while that badge is lit, pressing jumps to that agent instead of paging (repeat
+  presses cycle). Attention you can already see never steals the paging press.
 - **Active notifications.** When an agent flips to `blocked` or `done` you get a
   herdr notification with a sound (`request` / `done`) and the key flashes — even
   when you're not looking at the deck.
-- **Instant updates.** Refreshes on herdr socket events (push), with a slow
+- **Instant updates.** Refreshes on herdr socket events (push), with a 3-second
   safety-net poll as a backstop — no busy 1-second polling.
 
 ## Status → key
@@ -49,9 +49,9 @@ agent that's waiting on you.
 ## Tested on
 
 - **Stream Deck Mini** (6 keys)
-- macOS 26 (Apple Silicon)
-- Elgato Stream Deck app **7.4.2**
-- **herdr 0.7.0**
+- macOS 26.5.2 (Apple Silicon)
+- Elgato Stream Deck app **7.5.1**
+- **herdr 0.8.0**
 
 The plugin is keypad-only and works on any Stream Deck model with keys. The
 default layout assumes the 6-key Mini, but you can place the two actions on a
@@ -108,13 +108,15 @@ shows. The recommended 6-key Mini layout:
   rows 1–5. Press one to focus that agent's pane and raise the terminal on herdr's tab.
   Its only setting is **Display**, choosing the space name (the default) or the
   terminal title as the label.
-- **Pager** — pages through the grid, and shows `page X/Y`. When an agent needs
-  attention on a page you cannot see, it badges the count and pressing jumps
-  straight to that agent instead (repeat presses cycle).
+- **Pager** — pages through the grid, showing `▶` above the current page and page
+  count. When an agent needs attention on a page you cannot see, a coloured badge
+  reports it and pressing jumps straight to that agent instead (repeat presses
+  cycle).
 
 Add or remove Agent Slot keys freely: page size follows. Place enough keys for all
-your agents and the pager simply reports `1/1`. Using two Stream Decks? Each
-mirrors the same agents rather than extending the grid.
+your agents and the pager simply reports `1/1`. Using two Stream Decks? Each mirrors
+the same agents rather than extending the grid, and the page size follows whichever
+deck has the most keys.
 
 ## Configuration
 
@@ -153,8 +155,10 @@ which export their `WARP_*` variables after exec.
 
 ## How it works
 
-A single store polls/streams `herdr agent list`, normalizes the agents, and
-notifies both actions to re-render. All herdr I/O is isolated in
+A single store polls/streams `herdr agent list`, joins in space names from
+`herdr workspace list`, normalizes the agents, and notifies both actions to
+re-render. The label lookup is deliberately non-fatal: if it fails, keys fall back
+to the directory name rather than going blank. All herdr I/O is isolated in
 `src/herdr/*` (injected `run` for tests), the pure logic lives in `src/core/*`
 (unit-tested with `bun test`), and the Stream Deck actions in `src/actions/*` are
 thin glue. Key images are rendered as SVG data URIs for crisp text on the 80×80
@@ -172,9 +176,9 @@ The agent list is herdr's: `herdr agent list` returns agents in the order herdr'
 panel shows them under its default `spaces` sort, and the plugin does not filter
 it. If you set `[ui] agent_panel_sort = "priority"` in `~/.config/herdr/config.toml`,
 the plugin reads that and reproduces the attention queue, since the CLI always
-reports `spaces` order. Slot order comes from each key's coordinates on the deck. Why that is derived rather than
-configured — and what breaks in the alternatives — is in
-[ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
+reports `spaces` order. Slot order comes from each key's coordinates on the deck.
+Why that is derived rather than configured — and what breaks in the alternatives —
+is in [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
 
 ## Development
 

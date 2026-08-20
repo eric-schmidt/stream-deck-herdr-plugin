@@ -70,8 +70,10 @@ agents array maps 1:1 onto `workspaces[].number`.
    `(row, column)`, and ranked — reading order, left-to-right and top-to-bottom
    (`assignSlots` in `src/core/slots.ts`). `slotIndex` is gone from the property inspector,
    which now holds only **Display**.
-3. **Page size is the number of placed keys**, pushed into the store from
-   `src/actions/slot.ts` as keys appear and disappear.
+3. **Page size is the largest per-device key count**, pushed into the store from
+   `src/actions/slot.ts` as keys appear and disappear. On a single deck that is simply the
+   number of placed keys; see "The load-bearing detail" for why two decks take the maximum
+   rather than the sum.
 4. **Every agent is shown, idle included**, so the mirror is exact.
 5. **Pinning is removed.** Long-press moved an agent to slot 1, which is a direct override of
    herdr's order.
@@ -170,7 +172,11 @@ empty array. Safe only by accident today.
   byte-identical to `herdr agent list`, and paging walks rows 1–5, 6–10, 11–12.
 - Paging works on small decks, where it was previously inert.
 - Adding, moving, or removing a key re-derives everything on the next
-  `willAppear`/`willDisappear`. Nothing to keep in sync.
+  `willAppear`/`willDisappear`. Nothing to keep in sync — but note that *both* handlers must
+  call `renderAll()` themselves rather than relying on `setPageSize` to emit. `setPageSize`
+  no-ops when the value is unchanged, which on two decks is exactly what happens when the
+  smaller one loses a key: its survivors re-rank while the cross-device maximum stands still.
+  Fixed in `203fa64` after the keys kept stale images until the next poll.
 - The pager stops being mysterious. Jumping to an agent already on screen — which is what it
   did whenever *any* agent was blocked — no longer suppresses paging.
 - Three orphans are retired: `offPageWorstAttention`/`offPageAttentionCount` (unused since

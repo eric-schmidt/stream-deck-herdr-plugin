@@ -29,7 +29,7 @@
 			"Name": "Agent Slot",
 			"UUID": "dev.timvdhoorn.herdr-agents.slot",
 			"Icon": "imgs/actions/slot/icon",
-			"Tooltip": "Shows one herdr agent (by slot index).",
+			"Tooltip": "Shows one herdr agent; which one follows the key's position on the deck. Nothing to configure.",
 			"PropertyInspectorPath": "ui/slot.html",
 			"Controllers": [
 				"Keypad"
@@ -45,7 +45,7 @@
 			"Name": "Pager",
 			"UUID": "dev.timvdhoorn.herdr-agents.pager",
 			"Icon": "imgs/actions/pager/icon",
-			"Tooltip": "Jumps to the next blocked/done agent when any need attention; otherwise pages the agent grid.",
+			"Tooltip": "Pages the agent grid; jumps to the next blocked/done agent instead when one is off-page.",
 			"Controllers": [
 				"Keypad"
 			],

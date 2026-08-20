@@ -87,10 +87,12 @@ Key images are SVG data URIs, for crisp text on the 80×80 keys.
     setting; note herdr ships the default config **commented out**, so parse an uncommented
     line only.
   - **Slot index is the key's position**, from `KeyAction.coordinates` via `assignSlots`
-    (`src/core/slots.ts`) — reading order, ranked per device. Page size is the number of
-    placed keys. There is no `slotIndex` setting, and don't add one: a plugin-wide control
-    has nowhere to live, since Stream Deck has **no global property inspector**
-    (`GlobalPropertyInspectorPath` is invalid in every schema branch and `pack` rejects it).
+    (`src/core/slots.ts`) — reading order, ranked per device. Page size is the **largest
+    per-device** key count, not the total: two decks mirror the same agents, so the sum would
+    page in strides no single deck can show. There is no `slotIndex` setting, and don't add
+    one: a plugin-wide control has nowhere to live, since Stream Deck has **no global
+    property inspector** (`GlobalPropertyInspectorPath` is invalid in every schema branch
+    and `pack` rejects it).
   - **Idle agents are shown and pinning does not exist.** Both hiding and pinning reorder or
     filter the list, which breaks the mirror.
   - **A key is named by its space, not its directory.** `herdr agent list` does not carry the
@@ -152,13 +154,18 @@ These are all things that have already burned a session.
   [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
 - *Why is the deck's order different from my herdr panel?* → `[ui] agent_panel_sort` in
   `~/.config/herdr/config.toml`, reproduced by `sortForPanel` in `src/core/agents.ts`.
+- *When does the pager jump instead of paging?* → only for **off-page** attention:
+  `offPageAttentionAgents` in `src/core/pagination.ts`, consumed by `PagerAction.onKeyDown`.
+  Testing *all* agents, as it once did, let one blocked agent disable paging permanently.
+- *What is `docs/deck.png`?* → the README's hero image, a photo of the real Stream Deck app.
+  It is not generated, so any change to `renderKeySvg`/`renderPagerSvg` dates it and it has to
+  be re-shot by hand.
 
 ## Note on agent memory
 
-Claude Code's project memory (`~/.claude/projects/<slug>/memory/`) is local to one machine
-and account, and its directory name derives from the absolute repo path — so it does **not**
-travel with a clone. This file is the portable source of truth; treat memory as a local
-cache and re-seed it from here if useful.
+Whatever local memory your agent keeps — Claude Code's memory store, a scratch notes file —
+is scoped to one machine and account and does **not** travel with a clone. This file is the
+portable source of truth; treat memory as a cache and re-seed it from here if useful.
 
 ## Current state
 
@@ -166,8 +173,20 @@ cache and re-seed it from here if useful.
 
 - The host-terminal rework — discovery, the `open`-based chain, override logging, and
   ADR 0001 — is merged to `master` (was PR #1 on the fork).
+- **`feat/deck-mirrors-herdr` is the live branch and is not yet merged.** It carries the
+  positional-slot rework, herdr-order mirroring including `agent_panel_sort = "priority"`,
+  space-name key labels, the removal of pinning and idle-hiding, and ADR 0002. Until it
+  lands, the README rendered on GitHub is `master`'s and still describes pinning and hidden
+  idle agents.
 - Verified on a real device: a key press raises Warp *and* lands on herdr's tab; discovery
   succeeds on every press; `ps eww` works from inside Stream Deck's process tree.
+- Docs were last reconciled with the code on 2026-08-19 against **herdr 0.8.0**, Stream Deck
+  app 7.5.1, macOS 26.5.2. herdr 0.8 left everything this plugin depends on unchanged: the
+  `idle|working|blocked|done|unknown` vocabulary (`herdr agent wait --until` enumerates it),
+  the `agent list` / `workspace list` / `agent focus` / `notification show` shapes, and
+  `[ui] agent_panel_sort`.
+- **`docs/deck.png` is stale** and known to be: its pager key shows the deleted
+  `renderAttentionSvg` (solid red, `⇥`, a count). Needs re-shooting on a real deck.
 - Known-unsupported dependency: `WARP_FOCUS_URL` and the `warp://session/<uuid>` route are
   real but undocumented. Steps 3–4 of the chain cover a regression.
 - Not upstreamed to `timvdhoorn/stream-deck-herdr-plugin` yet; that is under consideration,
