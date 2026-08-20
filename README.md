@@ -18,17 +18,17 @@ agent that's waiting on you.
 - **Press = focus.** A short press runs `herdr agent focus` for that pane *and*
   raises the host terminal app, so the agent is actually on screen even if the
   terminal was in the background.
-- **Long-press = pin.** Holding a key pins the agent — it jumps to the front,
-  stays visible even when it goes idle, and gets a pushpin badge. Pins are
-  in-memory (reset when the plugin restarts).
-- **Morphing pager key.** When any agent needs attention it becomes a
-  "jump to the next blocked/done agent" key (cycles on repeat presses);
-  otherwise it pages through the agent grid. One key, both jobs — fits the 6-key
-  Mini.
+- **Mirrors herdr.** The deck shows every agent in the same order herdr does, so
+  key 1 is herdr's first row. Nothing to configure: keys fill left-to-right,
+  top-to-bottom, and how many agents fit on a page is simply how many keys you
+  placed.
+- **Morphing pager key.** When an agent needs attention *that this page cannot
+  show*, it becomes a "jump to the next blocked/done agent" key (cycles on repeat
+  presses) and shows a badge; otherwise it pages through the grid. One key, both
+  jobs — fits the 6-key Mini.
 - **Active notifications.** When an agent flips to `blocked` or `done` you get a
   herdr notification with a sound (`request` / `done`) and the key flashes — even
   when you're not looking at the deck.
-- **Idle agents are hidden** so the deck only shows agents that matter.
 - **Instant updates.** Refreshes on herdr socket events (push), with a slow
   safety-net poll as a backstop — no busy 1-second polling.
 
@@ -39,7 +39,7 @@ agent that's waiting on you.
 | working  | orange     | ●     | running now        |
 | blocked  | red        | ▲     | wants you          |
 | done      | green      | ✓     | finished, unseen   |
-| idle     | grey       | ○     | waiting (hidden)   |
+| idle     | grey       | ○     | waiting            |
 | unknown  | near-black | ·     | —                  |
 | empty    | black      |       | no agent in slot   |
 
@@ -92,22 +92,26 @@ install into the Stream Deck app.
 ## Layout & usage
 
 In the Stream Deck app, drag the two actions from the **herdr** category onto
-your keys. The recommended 6-key Mini layout:
+your keys. There is nothing to configure — a key's position decides which agent it
+shows. The recommended 6-key Mini layout:
 
 ```
-[ Agent Slot 0 ][ Agent Slot 1 ][ Agent Slot 2 ]
-[ Agent Slot 3 ][ Agent Slot 4 ][    Pager      ]
+[ Agent Slot ][ Agent Slot ][ Agent Slot ]
+[ Agent Slot ][ Agent Slot ][   Pager    ]
 ```
 
-- **Agent Slot** — set its `slotIndex` (0–4) in the Property Inspector. Each slot
-  shows one agent.
-  - *Short press* → focus that agent's pane + raise the terminal on herdr's tab.
-  - *Long press* → pin/unpin the agent.
-- **Pager** — jumps to the next agent needing attention, or pages the grid when
-  none do.
+- **Agent Slot** — shows one agent. Keys fill in reading order (left-to-right,
+  top-to-bottom) against herdr's own list, so the five keys above are herdr rows
+  1–5. Press one to focus that agent's pane and raise the terminal on herdr's tab.
+  Its only setting is **Display**, choosing the project name or the terminal title
+  as the label.
+- **Pager** — pages through the grid, and shows `page X/Y`. When an agent needs
+  attention on a page you cannot see, it badges the count and pressing jumps
+  straight to that agent instead (repeat presses cycle).
 
-Prefer a flat, no-paging layout? Place six **Agent Slot** keys (`slotIndex` 0–5)
-and skip the pager.
+Add or remove Agent Slot keys freely: page size follows. Place enough keys for all
+your agents and the pager simply reports `1/1`. Using two Stream Decks? Each
+mirrors the same agents rather than extending the grid.
 
 ## Configuration
 
@@ -160,6 +164,12 @@ and which tab of it — herdr is currently displayed in by reading the environme
 the attached `herdr` client process, and `terminal.ts` raises it via `open`. That
 indirection is deliberate and the alternatives are non-obvious; the reasoning is in
 [ADR 0001](docs/adr/0001-discover-host-terminal-from-herdr-client.md).
+
+The agent list is herdr's, unmodified: `herdr agent list` returns agents in the
+order herdr displays them, and the plugin neither sorts nor filters it. Slot order
+comes from each key's coordinates on the deck. Why that is derived rather than
+configured — and what breaks in the alternatives — is in
+[ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
 
 ## Development
 

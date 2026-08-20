@@ -29,7 +29,7 @@ Run `bun test` and `bunx tsc --noEmit` before reporting work done.
 | `src/core/*` | Pure logic — agents, status, pagination, transitions, SVG rendering. No I/O; where the unit tests concentrate. |
 | `src/herdr/*` | All herdr CLI/socket I/O (`herdr agent list`, `agent focus`, `notification show`). |
 | `src/os/*` | macOS integration: locating and raising the host terminal. |
-| `src/actions/*` | Stream Deck action glue (key press, render, long-press pin). Deliberately thin. |
+| `src/actions/*` | Stream Deck action glue (key press, render, deriving slot order from key coordinates). Deliberately thin. |
 | `src/plugin.ts` | Entry point: reads env, wires dependencies, owns the store subscription. |
 | `docs/adr/` | Architecture decision records. |
 
@@ -69,6 +69,25 @@ Key images are SVG data URIs, for crisp text on the 80×80 keys.
 - **`TerminalActivator`'s shape is load-bearing.** `slot.ts` and `pager.ts` call
   `activate()` and log-but-ignore failures so a raise failure never masks a successful pane
   focus. Keep that signature when changing `src/os/terminal.ts`.
+- **The deck mirrors herdr, and nothing about the grid is configured.**
+  [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md). Three rules follow from it, each of
+  which was a bug when violated:
+  - **`normalize` must not sort.** `herdr agent list` returns agents in herdr's own display
+    order, so deck position N is herdr row N. Sorting lexically by `workspaceId` — which it
+    used to do — scrambles it, because ids run `w0…w9`, `wA…wZ`, `w10`…: with 12 workspaces
+    the first key showed herdr row 11. Cross-check with `herdr api snapshot` →
+    `workspaces[].number`.
+  - **Slot index is the key's position**, from `KeyAction.coordinates` via `assignSlots`
+    (`src/core/slots.ts`) — reading order, ranked per device. Page size is the number of
+    placed keys. There is no `slotIndex` setting, and don't add one: a plugin-wide control
+    has nowhere to live, since Stream Deck has **no global property inspector**
+    (`GlobalPropertyInspectorPath` is invalid in every schema branch and `pack` rejects it).
+  - **Idle agents are shown and pinning does not exist.** Both hiding and pinning reorder or
+    filter the list, which breaks the mirror.
+- **A `null` page size means unpaged, not five.** Nothing is placed, so nothing is paged, and
+  `pageCount`/`pageSlice` treat it as one page holding everything. Don't "simplify" it to an
+  `Infinity` sentinel: `page * Infinity` is `NaN` and `slice(NaN, NaN)` silently returns
+  nothing.
 
 ## Gotchas
 
@@ -112,6 +131,9 @@ These are all things that have already burned a session.
   `src/core/render.ts`, `src/core/agent-icons.ts`.
 - *When does a key flash or notify?* → `detectFlips` in `src/core/transitions.ts`, consumed
   by the store subscription in `src/plugin.ts`.
+- *Which agent does a given key show, and why is there no slot setting?* → `assignSlots` in
+  `src/core/slots.ts`, the do-not-sort note on `normalize` in `src/core/agents.ts`, and
+  [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
 
 ## Note on agent memory
 
