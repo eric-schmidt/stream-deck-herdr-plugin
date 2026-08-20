@@ -1,5 +1,12 @@
 // src/core/store.ts
-import { normalize, orderForDisplay, type Agent, type RawAgent } from "./agents";
+import {
+  normalize,
+  sortForPanel,
+  type Agent,
+  type AgentPanelSort,
+  type RawAgent,
+  type RawWorkspace,
+} from "./agents";
 import { clampPage, pageCount } from "./pagination";
 
 export type StoreState = { agents: Agent[]; page: number };
@@ -9,8 +16,11 @@ export type AgentStore = {
   subscribe(fn: (s: StoreState) => void): () => void;
   setPage(next: number): void;
   nextPage(): void;
-  togglePin(paneId: string): void;
-  isPinned(paneId: string): boolean;
+  // null until an Agent Slot key reports its position; see `assignSlots` in ./slots.ts.
+  getPageSize(): number | null;
+  setPageSize(n: number): void;
+  // Mirrors herdr's `[ui] agent_panel_sort`; see src/herdr/config.ts.
+  setSortMode(sort: AgentPanelSort): void;
   pollNow(): Promise<void>;
   start(intervalMs?: number): void;
   stop(): void;
@@ -18,14 +28,17 @@ export type AgentStore = {
 
 export function createAgentStore(opts: {
   fetchAgents: () => Promise<RawAgent[]>;
+  // Supplies the space names keys are labelled with. Optional and non-fatal: a label lookup
+  // must never blank the deck, so a rejection degrades to cwd-based labels.
+  fetchWorkspaces?: () => Promise<RawWorkspace[]>;
   pageSize?: number;
+  sortMode?: AgentPanelSort;
 }): AgentStore {
-  const pageSize = opts.pageSize ?? 5;
+  // Inferred from the slot keys the user has placed, so it is unknown until one reports.
+  let pageSize: number | null = opts.pageSize ?? null;
   let state: StoreState = { agents: [], page: 0 };
-  // Full normalized list (includes idle) so pinned-idle agents can resurface;
-  // `pinned` is paneIds in pin order (in-memory, reset on plugin restart).
   let allAgents: Agent[] = [];
-  let pinned: string[] = [];
+  let sortMode: AgentPanelSort = opts.sortMode ?? "spaces";
   let hasLastGood = false;
   let failStreak = 0;
   let inFlight = false;
@@ -37,10 +50,11 @@ export function createAgentStore(opts: {
     state = { ...state, ...next };
     emit();
   };
-  // Re-derive the displayed list (pinned-first, idle hidden) from the current
-  // raw list + pins, clamping the page to the new length.
+  // The deck mirrors herdr's agent panel: every agent, idle included, in the order that
+  // panel shows them — so deck position N is herdr row N. Nothing is filtered; the only
+  // reordering is whichever sort herdr itself is set to.
   const recompute = () => {
-    const agents = orderForDisplay(allAgents, pinned);
+    const agents = sortForPanel(allAgents, sortMode);
     set({ agents, page: clampPage(state.page, pageCount(agents.length, pageSize)) });
   };
 
@@ -60,18 +74,29 @@ export function createAgentStore(opts: {
       const pages = pageCount(state.agents.length, pageSize);
       set({ page: (state.page + 1) % pages });
     },
-    togglePin(paneId) {
-      pinned = pinned.includes(paneId)
-        ? pinned.filter((id) => id !== paneId)
-        : [...pinned, paneId];
+    getPageSize: () => pageSize,
+    setPageSize(n) {
+      // Slot keys appear one at a time, so this is called repeatedly with the same value;
+      // bail early rather than re-render every key on each no-op.
+      const next = Math.max(1, Math.floor(n));
+      if (next === pageSize) return;
+      pageSize = next;
       recompute();
     },
-    isPinned: (paneId) => pinned.includes(paneId),
+    setSortMode(sort) {
+      if (sort === sortMode) return; // polled on every refresh; only re-render on a change
+      sortMode = sort;
+      recompute();
+    },
     async pollNow() {
       if (inFlight) return;
       inFlight = true;
       try {
-        allAgents = normalize(await opts.fetchAgents());
+        const [agents, workspaces] = await Promise.all([
+          opts.fetchAgents(),
+          opts.fetchWorkspaces?.().catch(() => [] as RawWorkspace[]) ?? [],
+        ]);
+        allAgents = normalize(agents, workspaces);
         hasLastGood = true;
         failStreak = 0;
         recompute();

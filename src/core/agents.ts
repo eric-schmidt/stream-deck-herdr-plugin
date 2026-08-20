@@ -10,6 +10,13 @@ export type RawAgent = {
   workspace_id?: string;
   tab_id?: string;
   terminal_title_stripped?: string;
+  state_change_seq?: number;
+};
+
+// From `herdr workspace list`. herdr calls these "spaces" in its UI.
+export type RawWorkspace = {
+  workspace_id?: string;
+  label?: string;
 };
 
 export type Agent = {
@@ -20,11 +27,15 @@ export type Agent = {
   workspaceId: string;
   focused: boolean;
   terminalTitle: string;
+  // herdr's monotonic counter for the last state change; the tiebreak in "priority" order.
+  stateChangeSeq: number;
+  // The space's name in herdr, which the user can rename. Empty when unknown.
+  spaceLabel: string;
 };
 
 const KNOWN: ReadonlySet<string> = new Set(["idle", "working", "blocked", "done", "unknown"]);
 
-function toAgent(r: RawAgent): Agent | null {
+function toAgent(r: RawAgent, labels: Map<string, string>): Agent | null {
   if (!r || typeof r.pane_id !== "string") return null;
   const status: AgentStatus =
     typeof r.agent_status === "string" && KNOWN.has(r.agent_status)
@@ -38,37 +49,57 @@ function toAgent(r: RawAgent): Agent | null {
     workspaceId: typeof r.workspace_id === "string" ? r.workspace_id : "",
     focused: r.focused === true,
     terminalTitle: typeof r.terminal_title_stripped === "string" ? r.terminal_title_stripped : "",
+    stateChangeSeq: typeof r.state_change_seq === "number" ? r.state_change_seq : 0,
+    spaceLabel: labels.get(typeof r.workspace_id === "string" ? r.workspace_id : "") ?? "",
   };
 }
 
-export function normalize(raw: RawAgent[]): Agent[] {
-  return raw
-    .map(toAgent)
-    .filter((a): a is Agent => a !== null)
+// Order is herdr's, deliberately: `herdr agent list` returns agents in the order herdr's
+// agent panel shows them under its default "spaces" sort, so the deck mirrors the terminal
+// and key N is herdr row N. Do NOT sort here. Sorting lexically by workspaceId — which this
+// used to do — scrambles it, because ids run w0…w9, wA…wZ, w10, w11…: with 12 workspaces
+// the deck showed herdr row 11 on its first key. See ADR 0002.
+// `workspaces` is optional so a failed/absent `herdr workspace list` degrades to cwd-based
+// labels rather than blanking the deck; see `labelFor`.
+export function normalize(raw: RawAgent[], workspaces: RawWorkspace[] = []): Agent[] {
+  const labels = new Map<string, string>();
+  for (const w of workspaces) {
+    if (typeof w.workspace_id === "string" && typeof w.label === "string") {
+      labels.set(w.workspace_id, w.label);
+    }
+  }
+  return raw.map((r) => toAgent(r, labels)).filter((a): a is Agent => a !== null);
+}
+
+// herdr's `[ui] agent_panel_sort`. "workspaces" is herdr's own accepted alias for "spaces".
+export type AgentPanelSort = "spaces" | "priority";
+
+// How much an agent wants you: herdr's builtin `attention` sort field, which its "priority"
+// mode (an "attention queue", per herdr's own config comment) orders by.
+const ATTENTION: Record<string, number> = {
+  blocked: 3,
+  done: 2,
+  working: 1,
+  idle: 0,
+  unknown: 0,
+};
+
+// Reproduce herdr's agent-panel ordering so the deck matches what the panel shows.
+//
+// "spaces" is herdr's list order, already correct — return it untouched.
+// "priority" is attention first, then most-recently-changed. `agent.list` takes EmptyParams
+// (no sort), and `agent.view.set` would mutate the user's own panel, so herdr cannot sort
+// this for us and it has to be reproduced here. Confirmed against a live panel; the
+// comparator is undocumented, so treat a mismatch as a herdr change rather than a bug here.
+export function sortForPanel(agents: Agent[], sort: AgentPanelSort): Agent[] {
+  if (sort === "spaces") return agents;
+  return agents
     .slice()
     .sort(
       (a, b) =>
-        a.workspaceId.localeCompare(b.workspaceId) || a.paneId.localeCompare(b.paneId),
+        (ATTENTION[b.status] ?? 0) - (ATTENTION[a.status] ?? 0) ||
+        b.stateChangeSeq - a.stateChangeSeq,
     );
-}
-
-// Statuses worth a slot on the deck. Idle agents are intentionally hidden —
-// they need no attention and would otherwise consume the limited keys.
-export function visibleAgents(agents: Agent[]): Agent[] {
-  return agents.filter((a) => a.status !== "idle");
-}
-
-// Display order for the deck: pinned agents first, in pin order (so the first
-// pin lands on slot 1, the second next to it, …), kept visible even when idle;
-// then the rest with idle agents hidden. `pinned` is a list of paneIds; stale
-// pins (agent gone) are skipped.
-export function orderForDisplay(all: Agent[], pinned: string[]): Agent[] {
-  const pinnedSet = new Set(pinned);
-  const pinnedAgents = pinned
-    .map((id) => all.find((a) => a.paneId === id))
-    .filter((a): a is Agent => a !== undefined);
-  const rest = visibleAgents(all.filter((a) => !pinnedSet.has(a.paneId)));
-  return [...pinnedAgents, ...rest];
 }
 
 function basename(path: string): string {
@@ -80,24 +111,38 @@ function truncate(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }
 
-export type DisplayMode = "project" | "title";
+export type DisplayMode = "space" | "title";
+
+// Stored settings may still hold the old "project" value, which meant the cwd basename.
+// herdr seeds a space's name from its directory, so "space" is what that value was reaching
+// for; map it rather than stranding existing keys on an unrecognised mode.
+export function parseDisplayMode(value: unknown): DisplayMode {
+  return value === "title" ? "title" : "space";
+}
+
+// What the key is called: herdr's space name, which the user can rename for exactly this
+// purpose. Falls back to the directory (herdr's own default for a space name) and then the
+// agent binary, so a missing or failed `workspace list` degrades instead of blanking a key.
+function baseLabel(agent: Agent): string {
+  return agent.spaceLabel || basename(agent.cwd) || agent.name;
+}
 
 export function labelFor(
   agent: Agent,
   peers: Agent[],
-  display: DisplayMode = "project",
+  display: DisplayMode = "space",
   max = 24,
 ): string {
   if (display === "title") {
     const title = agent.terminalTitle.trim();
     if (title) return truncate(title, max);
-    // No title available — fall through to the project-name label.
+    // No title available — fall through to the space-name label.
   }
-  const base = basename(agent.cwd) || agent.name;
-  // Agents whose project name collides get a stable 1-based number (#1, #2, …),
-  // ordered by paneId, so duplicates are told apart at a glance.
+  const base = baseLabel(agent);
+  // Two spaces can share a name (herdr allows it, and auto-naming from the directory makes it
+  // likely), so colliding labels get a stable 1-based number (#1, #2, …) ordered by paneId.
   const sameName = peers
-    .filter((p) => (basename(p.cwd) || p.name) === base)
+    .filter((p) => baseLabel(p) === base)
     .slice()
     .sort((a, b) => a.paneId.localeCompare(b.paneId));
   if (sameName.length <= 1) return truncate(base, max);

@@ -15,6 +15,39 @@ test("listAgents runs `herdr agent list` and returns the agents array", async ()
   expect(calls[0]).toEqual(["herdr", "agent", "list"]);
 });
 
+// Real `herdr workspace list` output, trimmed to the fields the plugin reads.
+const WORKSPACES = {
+  id: "cli:workspace:list",
+  result: {
+    type: "workspace_list",
+    workspaces: [
+      { workspace_id: "w8", label: "Next.js Caching", number: 1, pane_count: 1 },
+      { workspace_id: "w9", label: "[ExO] SDK Prerendering Issue", number: 2, pane_count: 1 },
+    ],
+  },
+};
+
+test("listWorkspaces runs `herdr workspace list` and returns the workspaces array", async () => {
+  const calls: string[][] = [];
+  const run: RunFn = async (cmd, args) => {
+    calls.push([cmd, ...args]);
+    return JSON.stringify(WORKSPACES);
+  };
+  const client = createHerdrClient({ run });
+  const workspaces = await client.listWorkspaces();
+  expect(calls[0]).toEqual(["herdr", "workspace", "list"]);
+  expect(workspaces.map((w) => w.label)).toEqual([
+    "Next.js Caching",
+    "[ExO] SDK Prerendering Issue",
+  ]);
+});
+
+test("listWorkspaces throws on malformed shape", async () => {
+  const run: RunFn = async () => JSON.stringify({ result: {} });
+  const client = createHerdrClient({ run });
+  await expect(client.listWorkspaces()).rejects.toThrow();
+});
+
 test("listAgents throws on malformed shape", async () => {
   const run: RunFn = async () => JSON.stringify({ result: {} });
   const client = createHerdrClient({ run });

@@ -27,9 +27,9 @@ Run `bun test` and `bunx tsc --noEmit` before reporting work done.
 | Path | Role |
 |------|------|
 | `src/core/*` | Pure logic — agents, status, pagination, transitions, SVG rendering. No I/O; where the unit tests concentrate. |
-| `src/herdr/*` | All herdr CLI/socket I/O (`herdr agent list`, `agent focus`, `notification show`). |
+| `src/herdr/*` | All herdr CLI/socket I/O (`herdr agent list`, `agent focus`, `notification show`) and reading `~/.config/herdr/config.toml`. |
 | `src/os/*` | macOS integration: locating and raising the host terminal. |
-| `src/actions/*` | Stream Deck action glue (key press, render, long-press pin). Deliberately thin. |
+| `src/actions/*` | Stream Deck action glue (key press, render, deriving slot order from key coordinates). Deliberately thin. |
 | `src/plugin.ts` | Entry point: reads env, wires dependencies, owns the store subscription. |
 | `docs/adr/` | Architecture decision records. |
 
@@ -69,6 +69,43 @@ Key images are SVG data URIs, for crisp text on the 80×80 keys.
 - **`TerminalActivator`'s shape is load-bearing.** `slot.ts` and `pager.ts` call
   `activate()` and log-but-ignore failures so a raise failure never masks a successful pane
   focus. Keep that signature when changing `src/os/terminal.ts`.
+- **The deck mirrors herdr, and nothing about the grid is configured.**
+  [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md). Three rules follow from it, each of
+  which was a bug when violated:
+  - **`normalize` must not sort.** `herdr agent list` returns agents in herdr's own display
+    order, so deck position N is herdr row N. Sorting lexically by `workspaceId` — which it
+    used to do — scrambles it, because ids run `w0…w9`, `wA…wZ`, `w10`…: with 12 workspaces
+    the first key showed herdr row 11. Cross-check with `herdr api snapshot` →
+    `workspaces[].number`.
+  - **herdr's panel has two orders, and the CLI only gives you one.** `[ui] agent_panel_sort`
+    is `"spaces"` (default, alias `"workspaces"`) or `"priority"` (an attention queue), but
+    `herdr agent list` always returns *spaces* order — `agent.list` takes `EmptyParams`, and
+    `agent.view.set` would rewrite the user's own panel. So `sortForPanel` reproduces
+    `priority` locally: attention desc, then `state_change_seq` desc. That comparator is
+    undocumented and was confirmed against a live panel — if the deck disagrees with herdr,
+    suspect a herdr change before assuming a bug here. `src/herdr/config.ts` reads the
+    setting; note herdr ships the default config **commented out**, so parse an uncommented
+    line only.
+  - **Slot index is the key's position**, from `KeyAction.coordinates` via `assignSlots`
+    (`src/core/slots.ts`) — reading order, ranked per device. Page size is the **largest
+    per-device** key count, not the total: two decks mirror the same agents, so the sum would
+    page in strides no single deck can show. There is no `slotIndex` setting, and don't add
+    one: a plugin-wide control has nowhere to live, since Stream Deck has **no global
+    property inspector** (`GlobalPropertyInspectorPath` is invalid in every schema branch
+    and `pack` rejects it).
+  - **Idle agents are shown and pinning does not exist.** Both hiding and pinning reorder or
+    filter the list, which breaks the mirror.
+  - **A key is named by its space, not its directory.** `herdr agent list` does not carry the
+    label, so `listWorkspaces` joins it in from `herdr workspace list` on `workspace_id`. The
+    fallback chain in `labelFor` is space label → cwd basename → agent name, and the workspace
+    fetch is deliberately **non-fatal** in `store.pollNow` — a cosmetic lookup must never
+    blank the deck. Two spaces can share a name, so collisions are numbered `#1`/`#2` by
+    `paneId` (stable as agents come and go). Labels ellipsize past 24 chars, which is the
+    render budget: `wrapLabel(label, 8, 3)`.
+- **A `null` page size means unpaged, not five.** Nothing is placed, so nothing is paged, and
+  `pageCount`/`pageSlice` treat it as one page holding everything. Don't "simplify" it to an
+  `Infinity` sentinel: `page * Infinity` is `NaN` and `slice(NaN, NaN)` silently returns
+  nothing.
 
 ## Gotchas
 
@@ -112,13 +149,23 @@ These are all things that have already burned a session.
   `src/core/render.ts`, `src/core/agent-icons.ts`.
 - *When does a key flash or notify?* → `detectFlips` in `src/core/transitions.ts`, consumed
   by the store subscription in `src/plugin.ts`.
+- *Which agent does a given key show, and why is there no slot setting?* → `assignSlots` in
+  `src/core/slots.ts`, the do-not-sort note on `normalize` in `src/core/agents.ts`, and
+  [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
+- *Why is the deck's order different from my herdr panel?* → `[ui] agent_panel_sort` in
+  `~/.config/herdr/config.toml`, reproduced by `sortForPanel` in `src/core/agents.ts`.
+- *When does the pager jump instead of paging?* → only for **off-page** attention:
+  `offPageAttentionAgents` in `src/core/pagination.ts`, consumed by `PagerAction.onKeyDown`.
+  Testing *all* agents, as it once did, let one blocked agent disable paging permanently.
+- *What is `docs/deck.png`?* → the README's hero image, a photo of the real Stream Deck app.
+  It is not generated, so any change to `renderKeySvg`/`renderPagerSvg` dates it and it has to
+  be re-shot by hand.
 
 ## Note on agent memory
 
-Claude Code's project memory (`~/.claude/projects/<slug>/memory/`) is local to one machine
-and account, and its directory name derives from the absolute repo path — so it does **not**
-travel with a clone. This file is the portable source of truth; treat memory as a local
-cache and re-seed it from here if useful.
+Whatever local memory your agent keeps — Claude Code's memory store, a scratch notes file —
+is scoped to one machine and account and does **not** travel with a clone. This file is the
+portable source of truth; treat memory as a cache and re-seed it from here if useful.
 
 ## Current state
 
@@ -126,8 +173,20 @@ cache and re-seed it from here if useful.
 
 - The host-terminal rework — discovery, the `open`-based chain, override logging, and
   ADR 0001 — is merged to `master` (was PR #1 on the fork).
+- **`feat/deck-mirrors-herdr` is the live branch and is not yet merged.** It carries the
+  positional-slot rework, herdr-order mirroring including `agent_panel_sort = "priority"`,
+  space-name key labels, the removal of pinning and idle-hiding, and ADR 0002. Until it
+  lands, the README rendered on GitHub is `master`'s and still describes pinning and hidden
+  idle agents.
 - Verified on a real device: a key press raises Warp *and* lands on herdr's tab; discovery
   succeeds on every press; `ps eww` works from inside Stream Deck's process tree.
+- Docs were last reconciled with the code on 2026-08-19 against **herdr 0.8.0**, Stream Deck
+  app 7.5.1, macOS 26.5.2. herdr 0.8 left everything this plugin depends on unchanged: the
+  `idle|working|blocked|done|unknown` vocabulary (`herdr agent wait --until` enumerates it),
+  the `agent list` / `workspace list` / `agent focus` / `notification show` shapes, and
+  `[ui] agent_panel_sort`.
+- **`docs/deck.png` is stale** and known to be: its pager key shows the deleted
+  `renderAttentionSvg` (solid red, `⇥`, a count). Needs re-shooting on a real deck.
 - Known-unsupported dependency: `WARP_FOCUS_URL` and the `warp://session/<uuid>` route are
   real but undocumented. Steps 3–4 of the chain cover a regression.
 - Not upstreamed to `timvdhoorn/stream-deck-herdr-plugin` yet; that is under consideration,
