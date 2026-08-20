@@ -1,6 +1,13 @@
 // src/core/agents.test.ts
 import { test, expect } from "bun:test";
-import { normalize, labelFor, sortForPanel, type RawAgent } from "./agents";
+import {
+  normalize,
+  labelFor,
+  sortForPanel,
+  parseDisplayMode,
+  type RawAgent,
+  type RawWorkspace,
+} from "./agents";
 import fixture from "../../tests/fixtures/agent-list.json";
 
 const raw = fixture.result.agents as RawAgent[];
@@ -20,7 +27,69 @@ test("normalize preserves herdr's order and does not sort", () => {
     focused: false,
     terminalTitle: "",
     stateChangeSeq: 0,
+    spaceLabel: "",
   });
+});
+
+// Key labels are herdr's space names, which the user renames for exactly this purpose.
+// `herdr agent list` does not carry them, so they are joined in from `herdr workspace list`.
+const SPACES: RawWorkspace[] = [
+  { workspace_id: "w5", label: "Loftware Proxy" },
+  { workspace_id: "w7", label: "LMMS" },
+];
+
+test("normalize joins space names in by workspace id", () => {
+  const agents = normalize(raw, SPACES);
+  expect(agents.find((a) => a.paneId === "w5:p1")!.spaceLabel).toBe("Loftware Proxy");
+  expect(agents.find((a) => a.paneId === "w7:p2")!.spaceLabel).toBe("LMMS");
+  // No matching workspace: empty, so labelFor falls back rather than showing nothing.
+  expect(agents.find((a) => a.paneId === "wJ:p1")!.spaceLabel).toBe("");
+});
+
+test("labelFor prefers the space name over the directory", () => {
+  const agents = normalize(raw, SPACES);
+  const a = agents.find((x) => x.paneId === "w5:p1")!;
+  expect(labelFor(a, agents)).toBe("Loftware Proxy"); // cwd basename is Loftware-Automation-Proxy
+});
+
+test("labelFor falls back to cwd, then agent name, when no space name is known", () => {
+  const [withCwd] = normalize([
+    { agent: "claude", agent_status: "idle", cwd: "/x/myproj", pane_id: "p1", workspace_id: "w1" },
+  ] as RawAgent[]);
+  expect(labelFor(withCwd, [withCwd])).toBe("myproj");
+
+  const [noCwd] = normalize([
+    { agent: "codex", agent_status: "idle", cwd: "", pane_id: "p2", workspace_id: "w1" },
+  ] as RawAgent[]);
+  expect(labelFor(noCwd, [noCwd])).toBe("codex");
+});
+
+// herdr allows two spaces to share a name, and auto-naming from the directory makes it
+// likely — this is live in the maintainer's session (two spaces named content-model-reviews).
+test("two spaces sharing a name disambiguate to #1 / #2", () => {
+  const agents = normalize(
+    [
+      { agent: "claude", agent_status: "idle", cwd: "/a/reviews", pane_id: "wY:p1", workspace_id: "wY" },
+      { agent: "claude", agent_status: "idle", cwd: "/b/reviews", pane_id: "w12:p2", workspace_id: "w12" },
+    ] as RawAgent[],
+    [
+      { workspace_id: "wY", label: "content-model-reviews" },
+      { workspace_id: "w12", label: "content-model-reviews" },
+    ],
+  );
+  // Numbered by paneId, not by position on the deck, so a key keeps its number as agents
+  // come and go: w12:p2 sorts before wY:p1 even though wY is listed first.
+  const labels = agents.map((a) => labelFor(a, agents));
+  expect(labels).toEqual(["content-model-reviews #2", "content-model-reviews #1"]);
+  expect(new Set(labels).size).toBe(2);
+  expect(labels.every((l) => l.length <= 24)).toBe(true);
+});
+
+test("parseDisplayMode maps the legacy \"project\" value to space", () => {
+  expect(parseDisplayMode("project")).toBe("space");
+  expect(parseDisplayMode(undefined)).toBe("space");
+  expect(parseDisplayMode("nonsense")).toBe("space");
+  expect(parseDisplayMode("title")).toBe("title");
 });
 
 // herdr's agent panel can be ordered two ways (`[ui] agent_panel_sort`), and the deck

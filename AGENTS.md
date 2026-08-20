@@ -93,6 +93,13 @@ Key images are SVG data URIs, for crisp text on the 80×80 keys.
     (`GlobalPropertyInspectorPath` is invalid in every schema branch and `pack` rejects it).
   - **Idle agents are shown and pinning does not exist.** Both hiding and pinning reorder or
     filter the list, which breaks the mirror.
+  - **A key is named by its space, not its directory.** `herdr agent list` does not carry the
+    label, so `listWorkspaces` joins it in from `herdr workspace list` on `workspace_id`. The
+    fallback chain in `labelFor` is space label → cwd basename → agent name, and the workspace
+    fetch is deliberately **non-fatal** in `store.pollNow` — a cosmetic lookup must never
+    blank the deck. Two spaces can share a name, so collisions are numbered `#1`/`#2` by
+    `paneId` (stable as agents come and go). Labels ellipsize past 24 chars, which is the
+    render budget: `wrapLabel(label, 8, 3)`.
 - **A `null` page size means unpaged, not five.** Nothing is placed, so nothing is paged, and
   `pageCount`/`pageSlice` treat it as one page holding everything. Don't "simplify" it to an
   `Infinity` sentinel: `page * Infinity` is `NaN` and `slice(NaN, NaN)` silently returns

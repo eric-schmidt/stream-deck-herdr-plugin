@@ -36,7 +36,10 @@ const terminal = createTerminalActivator({
   app: terminalApp,
   tab: terminalTab,
 });
-const store = createAgentStore({ fetchAgents: () => herdr.listAgents() });
+const store = createAgentStore({
+  fetchAgents: () => herdr.listAgents(),
+  fetchWorkspaces: () => herdr.listWorkspaces(),
+});
 
 // The deck mirrors herdr's agent panel, which can be ordered two ways, so the plugin has to
 // follow whichever `[ui] agent_panel_sort` is set to. Re-read alongside each refresh rather

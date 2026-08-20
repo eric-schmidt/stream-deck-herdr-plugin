@@ -3,7 +3,8 @@
 - **Status:** Accepted — breaking change to Agent Slot settings; revisit when a layout needs
   a page size that differs from the key count
 - **Date:** 2026-08-19
-- **Affects:** `src/core/slots.ts`, `src/core/agents.ts` (`normalize`, `sortForPanel`),
+- **Affects:** `src/core/slots.ts`, `src/core/agents.ts` (`normalize`, `sortForPanel`, `labelFor`),
+  `src/herdr/client.ts` (`listWorkspaces`),
   `src/herdr/config.ts`, `src/core/store.ts`,
   `src/core/pagination.ts`, `src/actions/slot.ts`, `src/actions/pager.ts`,
   `dev.timvdhoorn.herdr-agents.sdPlugin/ui/slot.html`
@@ -76,6 +77,17 @@ agents array maps 1:1 onto `workspaces[].number`.
    herdr's order.
 6. **The pager keys off *off-page* attention.** It jumps only when something needing
    attention is not visible; otherwise it pages.
+7. **A key is named by its space.** herdr names an agent after its space, and that name is
+   renameable — which users do precisely so it reads well on a key. `herdr agent list` does
+   not carry it, so it is joined in from `herdr workspace list` on `workspace_id`
+   (1810 bytes against 21562 for `api snapshot`, and it leaves the existing `listAgents`
+   parse untouched). The fallback chain is space label → cwd basename → agent binary, so a
+   missing or failed lookup degrades instead of blanking a key.
+
+   The cwd label was dropped as a *choice* rather than kept alongside: herdr seeds a space's
+   name from its directory, so the two agree until a rename, and offering both would ask the
+   user to distinguish options that are usually identical. `Display` now offers **Space name**
+   or **Terminal title**; a stored legacy `"project"` maps to `space` via `parseDisplayMode`.
 
 ### Reproducing the panel sort
 
@@ -188,6 +200,16 @@ empty array. Safe only by accident today.
   instantly.
 - Losing pinning means no way to hold one agent in a fixed position. The pager's
   jump-to-attention covers the case that motivated it.
+- **Space names longer than 24 characters ellipsize.** That is the render budget, not an
+  arbitrary cap: `renderKeySvg` wraps with `wrapLabel(label, 8, 3)`, so 8 characters × 3
+  lines is what an 80×80 key holds at the current font size. Three of eleven names in the
+  maintainer's session exceed it. Naming spaces for the deck is the intended fix; widening
+  the budget is a separate rendering change.
+- Two spaces may share a name — herdr allows it, and auto-naming from the directory makes it
+  likely. `labelFor` numbers collisions `#1`/`#2` by `paneId`, so a key keeps its number as
+  agents come and go rather than renumbering with the page.
+- One more subprocess per refresh (`herdr workspace list` alongside `agent list`), resolved
+  concurrently. Negligible at poll rates, and the workspace call is non-fatal by design.
 
 ## Revisit when
 

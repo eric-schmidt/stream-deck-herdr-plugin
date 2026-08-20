@@ -12,7 +12,7 @@ import type { HerdrClient } from "../herdr/client";
 import type { TerminalActivator } from "../os/terminal";
 import { pageSlice } from "../core/pagination";
 import { assignSlots, type SlotKey } from "../core/slots";
-import { labelFor, type DisplayMode } from "../core/agents";
+import { labelFor, parseDisplayMode, type DisplayMode } from "../core/agents";
 import { renderKeySvg } from "../core/render";
 
 type SlotSettings = { display?: DisplayMode };
@@ -60,7 +60,7 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
   }
 
   override onWillAppear(ev: WillAppearEvent<SlotSettings>): void {
-    this.#displays.set(ev.action.id, ev.payload.settings.display ?? "project");
+    this.#displays.set(ev.action.id, parseDisplayMode(ev.payload.settings.display));
     this.#track(
       ev.action.id,
       ev.action.device.id,
@@ -72,7 +72,7 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
   // Only `display` is a setting now; position comes from the deck, so nothing here can
   // change a key's slot.
   override onDidReceiveSettings(ev: DidReceiveSettingsEvent<SlotSettings>): void {
-    this.#displays.set(ev.action.id, ev.payload.settings.display ?? "project");
+    this.#displays.set(ev.action.id, parseDisplayMode(ev.payload.settings.display));
     this.renderAll();
   }
 
@@ -127,7 +127,7 @@ export class AgentSlotAction extends SingletonAction<SlotSettings> {
     this.actions.forEach((a) => {
       if (!a.isKey()) return;
       const index = indexById.get(a.id);
-      const display = this.#displays.get(a.id) ?? "project";
+      const display = this.#displays.get(a.id) ?? "space";
       const agent = index === undefined ? undefined : visible[index];
       void a.setTitle("");
       void a.setImage(

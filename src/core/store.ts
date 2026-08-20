@@ -1,5 +1,12 @@
 // src/core/store.ts
-import { normalize, sortForPanel, type Agent, type AgentPanelSort, type RawAgent } from "./agents";
+import {
+  normalize,
+  sortForPanel,
+  type Agent,
+  type AgentPanelSort,
+  type RawAgent,
+  type RawWorkspace,
+} from "./agents";
 import { clampPage, pageCount } from "./pagination";
 
 export type StoreState = { agents: Agent[]; page: number };
@@ -21,6 +28,9 @@ export type AgentStore = {
 
 export function createAgentStore(opts: {
   fetchAgents: () => Promise<RawAgent[]>;
+  // Supplies the space names keys are labelled with. Optional and non-fatal: a label lookup
+  // must never blank the deck, so a rejection degrades to cwd-based labels.
+  fetchWorkspaces?: () => Promise<RawWorkspace[]>;
   pageSize?: number;
   sortMode?: AgentPanelSort;
 }): AgentStore {
@@ -82,7 +92,11 @@ export function createAgentStore(opts: {
       if (inFlight) return;
       inFlight = true;
       try {
-        allAgents = normalize(await opts.fetchAgents());
+        const [agents, workspaces] = await Promise.all([
+          opts.fetchAgents(),
+          opts.fetchWorkspaces?.().catch(() => [] as RawWorkspace[]) ?? [],
+        ]);
+        allAgents = normalize(agents, workspaces);
         hasLastGood = true;
         failStreak = 0;
         recompute();

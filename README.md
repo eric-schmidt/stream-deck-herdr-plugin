@@ -11,8 +11,10 @@ agent that's waiting on you.
 
 ## What it does
 
-- **One key per agent.** Each key mirrors a live herdr agent: project label +
-  status color + a monochrome logo of the agent type (Claude, Codex, …).
+- **One key per agent.** Each key mirrors a live herdr agent: its **space name** +
+  status color + a monochrome logo of the agent type (Claude, Codex, …). Rename a
+  space in herdr and the key follows — handy for giving keys short, readable
+  names. Labels wrap to three lines and ellipsize past ~24 characters.
 - **Status at a glance** — color and glyph encode `working` / `blocked` / `done`
   / `idle` (see the table below).
 - **Press = focus.** A short press runs `herdr agent focus` for that pane *and*
@@ -104,8 +106,8 @@ shows. The recommended 6-key Mini layout:
 - **Agent Slot** — shows one agent. Keys fill in reading order (left-to-right,
   top-to-bottom) against herdr's agent panel, so the five keys above are its
   rows 1–5. Press one to focus that agent's pane and raise the terminal on herdr's tab.
-  Its only setting is **Display**, choosing the project name or the terminal title
-  as the label.
+  Its only setting is **Display**, choosing the space name (the default) or the
+  terminal title as the label.
 - **Pager** — pages through the grid, and shows `page X/Y`. When an agent needs
   attention on a page you cannot see, it badges the count and pressing jumps
   straight to that agent instead (repeat presses cycle).

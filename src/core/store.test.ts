@@ -109,3 +109,25 @@ test("setPageSize clamps to a minimum of one whole slot", async () => {
   store.setPageSize(3.7);
   expect(store.getPageSize()).toBe(3);
 });
+
+// A space-name lookup is cosmetic; it must never take the deck down with it.
+test("a failing workspace fetch still yields agents, with fallback labels", async () => {
+  const store = createAgentStore({
+    fetchAgents: async () => six,
+    fetchWorkspaces: async () => {
+      throw new Error("herdr workspace list exploded");
+    },
+  });
+  await store.pollNow();
+  expect(store.getState().agents).toHaveLength(6);
+  expect(store.getState().agents[0].spaceLabel).toBe("");
+});
+
+test("space names are joined onto agents by workspace id", async () => {
+  const store = createAgentStore({
+    fetchAgents: async () => six,
+    fetchWorkspaces: async () => [{ workspace_id: "w1", label: "My Space" }],
+  });
+  await store.pollNow();
+  expect(store.getState().agents.every((a) => a.spaceLabel === "My Space")).toBe(true);
+});
