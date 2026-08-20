@@ -206,15 +206,13 @@ portable source of truth; treat memory as a cache and re-seed it from here if us
 
 - The host-terminal rework — discovery, the `open`-based chain, override logging, and
   ADR 0001 — is merged to `master` (was PR #1 on the fork).
-- **`feat/status-sounds` is stacked on `feat/deck-mirrors-herdr`**, not on `master`. It adds
-  per-status notification sounds, the herdr-chime clash detector, and ADR 0003. If the base is squash-merged, restack with
-  `git rebase --onto master feat/deck-mirrors-herdr feat/status-sounds`; any PR must target the
-  base branch, or the diff swallows all of it.
-- **`feat/deck-mirrors-herdr` is the live branch and is not yet merged.** It carries the
-  positional-slot rework, herdr-order mirroring including `agent_panel_sort = "priority"`,
-  space-name key labels, the removal of pinning and idle-hiding, and ADR 0002. Until it
-  lands, the README rendered on GitHub is `master`'s and still describes pinning and hidden
-  idle agents.
+- The deck-mirrors-herdr work — positional slots, herdr-order mirroring including
+  `agent_panel_sort = "priority"`, space-name key labels, the removal of pinning and
+  idle-hiding, and ADR 0002 — is merged to `master` (PR #6 on the fork, 2026-08-20).
+- **`feat/status-sounds` is the live branch**: per-status notification sounds, the herdr-chime
+  clash detector, and ADR 0003. It was written stacked on `feat/deck-mirrors-herdr` before that
+  merged; because PR #6 landed as a real merge commit rather than a squash, no restack was
+  needed and it targets `master` directly.
 - Verified on a real device: a key press raises Warp *and* lands on herdr's tab; discovery
   succeeds on every press; `ps eww` works from inside Stream Deck's process tree.
 - Docs were last reconciled with the code on 2026-08-19 against **herdr 0.8.0**, Stream Deck
