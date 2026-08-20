@@ -41,34 +41,14 @@ function toAgent(r: RawAgent): Agent | null {
   };
 }
 
+// Order is herdr's, deliberately: `herdr agent list` returns agents in the order herdr
+// itself displays them (verifiable against `herdr api snapshot` — the agents array maps
+// 1:1 onto `workspaces[].number`), so the deck mirrors what you see in the terminal and
+// key N is herdr row N. Do NOT sort here. Sorting lexically by workspaceId — which this
+// used to do — scrambles it, because ids run w0…w9, wA…wZ, w10, w11…: with 12 workspaces
+// the deck showed herdr row 11 on its first key. See ADR 0002.
 export function normalize(raw: RawAgent[]): Agent[] {
-  return raw
-    .map(toAgent)
-    .filter((a): a is Agent => a !== null)
-    .slice()
-    .sort(
-      (a, b) =>
-        a.workspaceId.localeCompare(b.workspaceId) || a.paneId.localeCompare(b.paneId),
-    );
-}
-
-// Statuses worth a slot on the deck. Idle agents are intentionally hidden —
-// they need no attention and would otherwise consume the limited keys.
-export function visibleAgents(agents: Agent[]): Agent[] {
-  return agents.filter((a) => a.status !== "idle");
-}
-
-// Display order for the deck: pinned agents first, in pin order (so the first
-// pin lands on slot 1, the second next to it, …), kept visible even when idle;
-// then the rest with idle agents hidden. `pinned` is a list of paneIds; stale
-// pins (agent gone) are skipped.
-export function orderForDisplay(all: Agent[], pinned: string[]): Agent[] {
-  const pinnedSet = new Set(pinned);
-  const pinnedAgents = pinned
-    .map((id) => all.find((a) => a.paneId === id))
-    .filter((a): a is Agent => a !== undefined);
-  const rest = visibleAgents(all.filter((a) => !pinnedSet.has(a.paneId)));
-  return [...pinnedAgents, ...rest];
+  return raw.map(toAgent).filter((a): a is Agent => a !== null);
 }
 
 function basename(path: string): string {
