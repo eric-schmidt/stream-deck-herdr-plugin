@@ -28,7 +28,7 @@ Run `bun test` and `bunx tsc --noEmit` before reporting work done.
 |------|------|
 | `src/core/*` | Pure logic — agents, status, pagination, transitions, SVG rendering. No I/O; where the unit tests concentrate. |
 | `src/herdr/*` | All herdr CLI/socket I/O (`herdr agent list`, `agent focus`, `notification show`) and reading `~/.config/herdr/config.toml`. |
-| `src/os/*` | macOS integration: locating and raising the host terminal. |
+| `src/os/*` | macOS integration: locating and raising the host terminal, and playing notification sounds (`afplay`). |
 | `src/actions/*` | Stream Deck action glue (key press, render, deriving slot order from key coordinates). Deliberately thin. |
 | `src/plugin.ts` | Entry point: reads env, wires dependencies, owns the store subscription. |
 | `docs/adr/` | Architecture decision records. |
@@ -102,6 +102,33 @@ Key images are SVG data URIs, for crisp text on the 80×80 keys.
     blank the deck. Two spaces can share a name, so collisions are numbered `#1`/`#2` by
     `paneId` (stable as agents come and go). Labels ellipsize past 24 chars, which is the
     render budget: `wrapLabel(label, 8, 3)`.
+- **The deck owns its notification audio; herdr is never asked for a sound.**
+  [ADR 0003](docs/adr/0003-per-status-notification-sounds.md). There are two herdr sound
+  sources and the plugin used to feed a third: `[ui.sound] enabled` chimes on every state
+  change, and `notification show --sound` is a *separate* sound layered on a notification.
+  Passing `--sound done` on each flip therefore double-sounded every default install from
+  `46fa92b` until ADR 0003. `src/plugin.ts` now passes **`--sound none` unconditionally** —
+  don't "restore" it. Five things follow:
+  - **The default is silence**, and every unparseable value falls back to it. A fresh install
+    makes one sound (herdr's chime), not two, and nothing doubles until the user opts in.
+  - **herdr's chime cannot be muted from here.** `parseSoundEnabled` reads it so the inspector
+    can *say* both will play; a button then writes `enabled = false` to the user's config and
+    runs `herdr server reload-config`. That parse is **section-aware** — `enabled` appears under
+    other tables, so a bare line match reads the wrong one.
+  - **Writing the user's config is allowed only behind that click.** ADR 0002 refused
+    `agent.view.set` because *rendering a key* would rewrite the user's panel. The rule is "no
+    mutation as a side effect", not "never write": this one is explicit, labelled, and backed up
+    to `config.toml.bak-<epoch>` first. Keep it that way.
+  - **The setting is plugin-wide** (`streamDeck.settings.*GlobalSettings`), because the notify
+    path iterates flipped *agents*, not keys, and keys are positional. Edited in the Agent Slot
+    inspector only because there is no global inspector, hence the "Apply to every key" heading.
+  - **`global` in sdpi is a boolean attribute** and the key comes from `setting`, so
+    `setting="soundBlocked" global` binds and persists correctly. ADR 0002's claim that the
+    binding is broken describes PR #4 writing `global="pageSize"` with no `setting`; ADR 0003
+    corrects it. That does not reopen the page-size decision.
+  Only `blocked`/`done` are configurable, because `detectFlips` filters on `isAttention`. The
+  14 sound names are duplicated between `SYSTEM_SOUNDS` and `ui/slot.html` — the bundled sdpi
+  has no `datasource` — and a test reads the HTML to keep them in step.
 - **A `null` page size means unpaged, not five.** Nothing is placed, so nothing is paged, and
   `pageCount`/`pageSlice` treat it as one page holding everything. Don't "simplify" it to an
   `Infinity` sentinel: `page * Infinity` is `NaN` and `slice(NaN, NaN)` silently returns
@@ -149,6 +176,12 @@ These are all things that have already burned a session.
   `src/core/render.ts`, `src/core/agent-icons.ts`.
 - *When does a key flash or notify?* → `detectFlips` in `src/core/transitions.ts`, consumed
   by the store subscription in `src/plugin.ts`.
+- *What sound does a notification make, and why isn't it herdr's?* → `soundPathFor` in
+  `src/core/sounds.ts`, `createSoundPlayer` in `src/os/sound.ts`, and
+  [ADR 0003](docs/adr/0003-per-status-notification-sounds.md).
+- *Why do I hear two sounds?* → herdr's own `[ui.sound] enabled`, which is not ours. The
+  inspector detects it (`parseSoundEnabled`) and offers to turn it off (`withSoundEnabled`),
+  both in `src/herdr/config.ts`.
 - *Which agent does a given key show, and why is there no slot setting?* → `assignSlots` in
   `src/core/slots.ts`, the do-not-sort note on `normalize` in `src/core/agents.ts`, and
   [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
@@ -173,6 +206,10 @@ portable source of truth; treat memory as a cache and re-seed it from here if us
 
 - The host-terminal rework — discovery, the `open`-based chain, override logging, and
   ADR 0001 — is merged to `master` (was PR #1 on the fork).
+- **`feat/status-sounds` is stacked on `feat/deck-mirrors-herdr`**, not on `master`. It adds
+  per-status notification sounds, the herdr-chime clash detector, and ADR 0003. If the base is squash-merged, restack with
+  `git rebase --onto master feat/deck-mirrors-herdr feat/status-sounds`; any PR must target the
+  base branch, or the diff swallows all of it.
 - **`feat/deck-mirrors-herdr` is the live branch and is not yet merged.** It carries the
   positional-slot rework, herdr-order mirroring including `agent_panel_sort = "priority"`,
   space-name key labels, the removal of pinning and idle-hiding, and ADR 0002. Until it
@@ -187,6 +224,12 @@ portable source of truth; treat memory as a cache and re-seed it from here if us
   `[ui] agent_panel_sort`.
 - **`docs/deck.png` is stale** and known to be: its pager key shows the deleted
   `renderAttentionSvg` (solid red, `⇥`, a count). Needs re-shooting on a real deck.
+- **Cross-platform is an open, unstarted scope.** A marketplace release would need Windows
+  support, and sound is the smallest part of it: `afplay` and `/System/Library/Sounds` swap out
+  behind `SYSTEM_SOUNDS`/`SYSTEM_SOUND_DIR` and the injected `RunFn`, but the whole of
+  `src/os/*` (`ps`, `open`, `osascript`, the Warp focus URL) is macOS-only, and
+  `manifest.json` declares `"Platform": "mac"`. Don't cite the sound module as evidence the
+  port is close.
 - Known-unsupported dependency: `WARP_FOCUS_URL` and the `warp://session/<uuid>` route are
   real but undocumented. Steps 3–4 of the chain cover a regression.
 - Not upstreamed to `timvdhoorn/stream-deck-herdr-plugin` yet; that is under consideration,

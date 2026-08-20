@@ -1,6 +1,6 @@
 // src/herdr/config.test.ts
 import { test, expect } from "bun:test";
-import { parseAgentPanelSort } from "./config";
+import { parseAgentPanelSort, parseSoundEnabled, withSoundEnabled } from "./config";
 
 // Real shape of ~/.config/herdr/config.toml
 const CONFIG = `[theme]
@@ -51,4 +51,83 @@ test("missing, empty, or unrecognised falls back to herdr's default", () => {
 
 test("tolerates whitespace and casing", () => {
   expect(parseAgentPanelSort('  agent_panel_sort   =   "PRIORITY"  ')).toBe("priority");
+});
+
+// --- [ui.sound] enabled -------------------------------------------------------------------
+
+// herdr's own chime, which the deck cannot mute and therefore has to warn about.
+test("sound is enabled by default, as herdr itself defaults it", () => {
+  expect(parseSoundEnabled("")).toBe(true);
+  expect(parseSoundEnabled("[ui.sound]\n# enabled = true\n")).toBe(true);
+  expect(parseSoundEnabled('[ui]\nagent_panel_sort = "priority"\n')).toBe(true);
+});
+
+test("an explicit enabled = false is read", () => {
+  expect(parseSoundEnabled("[ui.sound]\nenabled = false\n")).toBe(false);
+  expect(parseSoundEnabled("[ui.sound]\n  enabled   =   false  # off\n")).toBe(false);
+});
+
+// `enabled` is a common key name; a bare line match would read some other table's setting.
+test("only [ui.sound]'s own enabled counts", () => {
+  const toml = "[update]\nenabled = false\n\n[ui.sound]\nenabled = true\n";
+  expect(parseSoundEnabled(toml)).toBe(true);
+  const other = "[ui.sound]\nrequest_path = \"x.mp3\"\n\n[update]\nenabled = false\n";
+  expect(parseSoundEnabled(other)).toBe(true); // the false belongs to [update]
+});
+
+// --- writing it back ----------------------------------------------------------------------
+
+test("an existing enabled line is replaced in place", () => {
+  const out = withSoundEnabled("[ui.sound]\nenabled = true\nrequest_path = \"s.mp3\"\n", false);
+  expect(out).toBe("[ui.sound]\nenabled = false\nrequest_path = \"s.mp3\"\n");
+});
+
+// herdr ships the line commented out; replacing it keeps the setting where the user looks for it.
+test("a commented-out enabled line is replaced rather than duplicated", () => {
+  const out = withSoundEnabled("[ui.sound]\n# enabled = true\n", false);
+  expect(out).toBe("[ui.sound]\nenabled = false\n");
+});
+
+test("the key is inserted when the section exists without it", () => {
+  const out = withSoundEnabled("[ui.sound]\nrequest_path = \"s.mp3\"\n", false);
+  expect(out).toBe("[ui.sound]\nenabled = false\nrequest_path = \"s.mp3\"\n");
+});
+
+test("the section is appended when there is none", () => {
+  const out = withSoundEnabled('[ui]\nagent_panel_sort = "priority"\n', false);
+  expect(out).toContain('agent_panel_sort = "priority"');
+  expect(out).toContain("[ui.sound]\nenabled = false\n");
+});
+
+// A key belonging to a later table must not be mistaken for [ui.sound]'s.
+test("a later table's enabled is not hijacked", () => {
+  const out = withSoundEnabled("[ui.sound]\nrequest_path = \"s.mp3\"\n\n[update]\nenabled = true\n", false);
+  expect(out).toBe("[ui.sound]\nenabled = false\nrequest_path = \"s.mp3\"\n\n[update]\nenabled = true\n");
+});
+
+// The real file this was built against. Everything else in it must survive untouched.
+test("rewriting a real config preserves every other line and comment", () => {
+  const real = [
+    "[theme]",
+    'name = "terminal"',
+    "auto_switch = false",
+    "",
+    "[ui]",
+    'agent_panel_sort = "priority"',
+    "",
+    "show_agent_labels_on_pane_borders = true",
+    "[ui.toast]",
+    '# "system" routed through /usr/bin/osascript.',
+    'delivery = "off"',
+    "",
+    "[ui.sound]",
+    "enabled = true",
+    "# Silence needs-attention (approval) prompts only.",
+    'request_path = "sounds/silent.mp3"',
+    "",
+  ].join("\n");
+  const out = withSoundEnabled(real, false);
+  expect(out).toBe(real.replace("enabled = true", "enabled = false"));
+  expect(parseSoundEnabled(out)).toBe(false);
+  expect(parseAgentPanelSort(out)).toBe("priority"); // the other reader still works
 });
