@@ -205,17 +205,12 @@ portable source of truth; treat memory as a cache and re-seed it from here if us
 
 ## Current state
 
-*Ephemeral — safe to delete, and should be dropped from any branch proposed upstream.*
+Standing caveats and open scopes — the things a newcomer cannot read off the code. What has
+landed *is* the code, the tests, and the ADRs in `docs/adr/`; which branch or PR carried it
+there is `git log`'s job, not this file's. Keep branch and PR bookkeeping out of it — the
+list this section used to carry named a merged branch as the live one, which is how that
+kind of entry always ends.
 
-- The host-terminal rework — discovery, the `open`-based chain, override logging, and
-  ADR 0001 — is merged to `master` (was PR #1 on the fork).
-- The deck-mirrors-herdr work — positional slots, herdr-order mirroring including
-  `agent_panel_sort = "priority"`, space-name key labels, the removal of pinning and
-  idle-hiding, and ADR 0002 — is merged to `master` (PR #6 on the fork, 2026-08-20).
-- **`feat/status-sounds` is the live branch**: per-status notification sounds, the herdr-chime
-  clash detector, and ADR 0003. It was written stacked on `feat/deck-mirrors-herdr` before that
-  merged; because PR #6 landed as a real merge commit rather than a squash, no restack was
-  needed and it targets `master` directly.
 - Verified on a real device: a key press raises Warp *and* lands on herdr's tab; discovery
   succeeds on every press; `ps eww` works from inside Stream Deck's process tree.
 - Docs were last reconciled with the code on 2026-08-19 against **herdr 0.8.0**, Stream Deck
