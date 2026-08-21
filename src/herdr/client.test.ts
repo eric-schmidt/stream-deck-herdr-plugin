@@ -72,3 +72,16 @@ test("notify runs `herdr notification show` with body + sound", async () => {
   await client.notify("proj blocked", { body: "claude", sound: "request" });
   expect(calls[0]).toEqual(["herdr", "notification", "show", "proj blocked", "--body", "claude", "--sound", "request"]);
 });
+
+// Applying a [ui.sound] change without making the user restart herdr.
+test("reloadConfig runs `herdr server reload-config`", async () => {
+  const calls: string[][] = [];
+  const client = createHerdrClient({
+    run: async (cmd, args) => {
+      calls.push([cmd, ...args]);
+      return "";
+    },
+  });
+  await client.reloadConfig();
+  expect(calls[0]).toEqual(["herdr", "server", "reload-config"]);
+});

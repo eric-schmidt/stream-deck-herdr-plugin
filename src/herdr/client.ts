@@ -28,6 +28,8 @@ export type HerdrClient = {
   listWorkspaces(): Promise<RawWorkspace[]>;
   focus(paneId: string): Promise<void>;
   notify(title: string, opts?: NotifyOpts): Promise<void>;
+  // Applies an edit to ~/.config/herdr/config.toml without restarting herdr.
+  reloadConfig(): Promise<void>;
 };
 
 export function createHerdrClient(opts: { run?: RunFn; bin?: string } = {}): HerdrClient {
@@ -50,6 +52,9 @@ export function createHerdrClient(opts: { run?: RunFn; bin?: string } = {}): Her
     },
     async focus(paneId) {
       await run(bin, ["agent", "focus", paneId]);
+    },
+    async reloadConfig() {
+      await run(bin, ["server", "reload-config"]);
     },
     async notify(title, opts = {}) {
       const args = ["notification", "show", title];
