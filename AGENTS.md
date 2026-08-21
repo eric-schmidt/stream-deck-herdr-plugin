@@ -154,8 +154,15 @@ These are all things that have already burned a session.
 - **`open` exits 0 even when the target app ignores the URL.** Success of
   `open warp://session/<uuid>` cannot be established from an exit status; only by watching
   the screen. Don't write code that treats exit 0 as confirmation.
-- **`streamdeck pack` rewrites `manifest.json`**, stripping its trailing newline. Check
-  `git status` after packing so it doesn't ride along in an unrelated commit.
+- **`streamdeck pack` rewrites `manifest.json`**, and its serializer emits tabs and *no*
+  trailing newline. Editors put the newline back on save, so the last byte used to flip
+  every time either one touched the file — which is how it rode into `9b59760`, a commit
+  about notification sounds. The checked-in file now matches what `pack` writes; leave it
+  that way. `.editorconfig` asks editors not to re-add the newline and CI fails if one
+  comes back. To fix a file that regained it:
+  `printf '%s' "$(cat <manifest>)" > <manifest>`. Don't "restore" the newline for
+  tidiness — `manifest.json` is hand-authored source, but `pack` is the only writer whose
+  format we cannot change, so it wins.
 - **Developer mode is off on the maintainer's machine**, so `bunx streamdeck restart <uuid>`
   is refused (`Feature only enabled in developer mode`) and `bun run watch` won't work. The
   installed plugin is a *copy*, not a symlink to this repo, so `bun run build` alone changes

@@ -1,0 +1,20 @@
+# Keeps editors from re-formatting files that another tool also writes. See the
+# manifest.json note in AGENTS.md for the churn this exists to stop.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+[*.{ts,js,json,html,md,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# `streamdeck pack` rewrites this file in place, and its JSON serializer indents with tabs
+# and emits no trailing newline. We cannot change the tool, so the checked-in file matches
+# what the tool produces and editors are told to leave it that way — otherwise every save
+# and every pack flip the last byte and the diff rides along in an unrelated commit.
+[dev.timvdhoorn.herdr-agents.sdPlugin/manifest.json]
+indent_style = tab
+insert_final_newline = false

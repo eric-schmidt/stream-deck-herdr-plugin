@@ -27,3 +27,16 @@ jobs:
 
       - name: Build
         run: bun run build
+
+      # `streamdeck pack` writes manifest.json with no trailing newline; editors put one
+      # back. .editorconfig asks them not to, but that is a convention an editor may ignore,
+      # so this is the part that actually holds. If it fails, strip the last byte again:
+      #   printf '%s' "$(cat <manifest>)" > <manifest>
+      - name: manifest.json keeps the format `streamdeck pack` writes
+        run: |
+          manifest=dev.timvdhoorn.herdr-agents.sdPlugin/manifest.json
+          if [ -z "$(tail -c 1 "$manifest")" ]; then
+            echo "::error file=$manifest::manifest.json has regained a trailing newline; \
+          streamdeck pack strips it, so this will flip back and ride along in an unrelated commit"
+            exit 1
+          fi
