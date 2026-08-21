@@ -66,9 +66,10 @@ Key images are SVG data URIs, for crisp text on the 80×80 keys.
 - **`open` (LaunchServices) over `osascript`** for raising apps: it needs no TCC grant,
   whereas AppleScript `activate` needs Automation permission that a background plugin
   cannot reliably obtain. `osascript` survives only in the opt-in keystroke fallback.
-- **`TerminalActivator`'s shape is load-bearing.** `slot.ts` and `pager.ts` call
-  `activate()` and log-but-ignore failures so a raise failure never masks a successful pane
-  focus. Keep that signature when changing `src/os/terminal.ts`.
+- **`TerminalActivator`'s shape is load-bearing.** `slot.ts` calls `activate()` and
+  log-but-ignores failures so a raise failure never masks a successful pane focus. Keep that
+  signature when changing `src/os/terminal.ts`. (`pager.ts` used to call it too, back when a
+  press could jump to an agent; it only pages now, so it takes the store alone.)
 - **The deck mirrors herdr, and nothing about the grid is configured.**
   [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md). Three rules follow from it, each of
   which was a bug when violated:
@@ -187,9 +188,11 @@ These are all things that have already burned a session.
   [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
 - *Why is the deck's order different from my herdr panel?* → `[ui] agent_panel_sort` in
   `~/.config/herdr/config.toml`, reproduced by `sortForPanel` in `src/core/agents.ts`.
-- *When does the pager jump instead of paging?* → only for **off-page** attention:
-  `offPageAttentionAgents` in `src/core/pagination.ts`, consumed by `PagerAction.onKeyDown`.
-  Testing *all* agents, as it once did, let one blocked agent disable paging permanently.
+- *What lights the badge on the pager key?* → only **off-page** attention:
+  `offPageWorstAttention` / `offPageAttentionCount` in `src/core/pagination.ts`, consumed by
+  `PagerAction.renderAll`. It is a read-out, not a mode: `onKeyDown` always pages. Pressing
+  used to jump to the badged agent instead, which made paging unpredictable — see the update
+  note on [ADR 0002](docs/adr/0002-deck-mirrors-herdr-order.md).
 - *What is `docs/deck.png`?* → the README's hero image, a photo of the real Stream Deck app.
   It is not generated, so any change to `renderKeySvg`/`renderPagerSvg` dates it and it has to
   be re-shot by hand.

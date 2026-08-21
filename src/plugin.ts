@@ -106,7 +106,7 @@ streamDeck.ui.onSendToPlugin(async (ev) => {
 });
 
 const slot = new AgentSlotAction(store, herdr, terminal);
-const pager = new PagerAction(store, herdr, terminal);
+const pager = new PagerAction(store);
 
 let prevAgents: Agent[] | null = null;
 

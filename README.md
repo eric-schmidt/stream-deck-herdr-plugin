@@ -25,10 +25,10 @@ agent that's waiting on you.
   you have herdr set up — so key 1 is herdr's first row. Nothing to configure:
   keys fill left-to-right, top-to-bottom, and how many agents fit on a page is
   simply how many keys you placed.
-- **One pager key, two jobs.** It always reads as a pager (`▶` over `page/total`),
-  but badges any blocked or done agent *that the visible page cannot show* — and
-  while that badge is lit, pressing jumps to that agent instead of paging (repeat
-  presses cycle). Attention you can already see never steals the paging press.
+- **A pager that only pages.** It reads `▶` over `page/total` and each press moves
+  to the next page, wrapping at the end. A coloured badge flags any blocked or done
+  agent *that the visible page cannot show*, but it is a read-out only — it never
+  changes what the press does.
 - **Active notifications, with your own sounds.** When an agent flips to `blocked`
   or `done` you get a herdr notification and the key flashes — even when you're not
   looking at the deck. Give each of those two statuses its own sound: one of the 14
@@ -111,9 +111,9 @@ shows. The recommended 6-key Mini layout:
   terminal title as the label, and the notification **Sounds** below — which apply
   to every key, not just the one you opened.
 - **Pager** — pages through the grid, showing `▶` above the current page and page
-  count. When an agent needs attention on a page you cannot see, a coloured badge
-  reports it and pressing jumps straight to that agent instead (repeat presses
-  cycle).
+  count. Every press advances one page and wraps at the end. When an agent needs
+  attention on a page you cannot see, a coloured badge reports it — the badge only
+  tells you it is there; paging to it is still up to you.
 
 Add or remove Agent Slot keys freely: page size follows. Place enough keys for all
 your agents and the pager simply reports `1/1`. Using two Stream Decks? Each mirrors
