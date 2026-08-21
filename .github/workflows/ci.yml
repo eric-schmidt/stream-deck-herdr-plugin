@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned, not `latest`: bun rewrites bun.lock when its lockfile format moves, and an
+      # unpinned runner would make that churn show up as a CI-only diff.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+
+      - run: bun install
+
+      - name: Test
+        run: bun test
+
+      - name: Type-check
+        run: bunx tsc --noEmit
+
+      - name: Build
+        run: bun run build
