@@ -29,9 +29,10 @@ agent that's waiting on you.
   but badges any blocked or done agent *that the visible page cannot show* — and
   while that badge is lit, pressing jumps to that agent instead of paging (repeat
   presses cycle). Attention you can already see never steals the paging press.
-- **Active notifications.** When an agent flips to `blocked` or `done` you get a
-  herdr notification with a sound (`request` / `done`) and the key flashes — even
-  when you're not looking at the deck.
+- **Active notifications, with your own sounds.** When an agent flips to `blocked`
+  or `done` you get a herdr notification and the key flashes — even when you're not
+  looking at the deck. Give each of those two statuses its own sound: one of the 14
+  macOS system sounds, or any file you point at.
 - **Instant updates.** Refreshes on herdr socket events (push), with a 3-second
   safety-net poll as a backstop — no busy 1-second polling.
 
@@ -106,8 +107,9 @@ shows. The recommended 6-key Mini layout:
 - **Agent Slot** — shows one agent. Keys fill in reading order (left-to-right,
   top-to-bottom) against herdr's agent panel, so the five keys above are its
   rows 1–5. Press one to focus that agent's pane and raise the terminal on herdr's tab.
-  Its only setting is **Display**, choosing the space name (the default) or the
-  terminal title as the label.
+  Its settings are **Display**, choosing the space name (the default) or the
+  terminal title as the label, and the notification **Sounds** below — which apply
+  to every key, not just the one you opened.
 - **Pager** — pages through the grid, showing `▶` above the current page and page
   count. When an agent needs attention on a page you cannot see, a coloured badge
   reports it and pressing jumps straight to that agent instead (repeat presses
@@ -153,6 +155,38 @@ this. And because `ps` reports the environment a process was *exec'd* with,
 discovery works via the `herdr` client you launched, not via Warp's own tab shells,
 which export their `WARP_*` variables after exec.
 
+### Notification sounds
+
+Set from any Agent Slot key's inspector, under **Sounds**. They are plugin-wide —
+notifications come from herdr's agent list, not from a particular key, and keys are
+positional, so a per-key sound would follow the deck position rather than the agent.
+Editing them from one key changes them everywhere.
+
+`blocked` and `done` each choose one of:
+
+| Choice | What happens |
+|--------|--------------|
+| **No sound** | The notification still appears; the deck stays quiet. The default. |
+| A macOS system sound | Plays `/System/Library/Sounds/<name>.aiff`. |
+| **Other…** | Reveals a file picker; point it at any audio file. |
+
+The other statuses in the table above are deliberately not listed: only `blocked`
+and `done` ever raise a notification, so only they can make a sound.
+
+**herdr makes its own sound too.** `[ui.sound] enabled` in
+`~/.config/herdr/config.toml` chimes whenever an agent changes state in a background
+workspace, which is separate from anything the deck does and is on by default — so
+with a deck sound set you will hear *two*. The plugin never asks herdr for a
+notification sound (`--sound none`, always), but it cannot mute that chime. When it
+detects both are live, the inspector says so and offers a **Turn off herdr's
+sounds** button: one click sets `[ui.sound] enabled = false`, after copying your
+config to `config.toml.bak-<timestamp>`, and reloads herdr so it takes effect
+immediately. Nothing is written without that click.
+
+Why the deck plays audio itself rather than asking herdr — and why that button is
+allowed to edit your config at all — is in
+[ADR 0003](docs/adr/0003-per-status-notification-sounds.md).
+
 ## How it works
 
 A single store polls/streams `herdr agent list`, joins in space names from
@@ -164,7 +198,8 @@ to the directory name rather than going blank. All herdr I/O is isolated in
 thin glue. Key images are rendered as SVG data URIs for crisp text on the 80×80
 keys.
 
-macOS integration sits in `src/os/*`, also behind an injected `run`. Focusing a
+macOS integration sits in `src/os/*`, also behind an injected `run` — raising the
+host terminal, and playing notification sounds with `afplay`. Focusing a
 herdr pane only switches the pane *inside* herdr, so a key press additionally has
 to put the host terminal on screen: `hostterminal.ts` works out which terminal —
 and which tab of it — herdr is currently displayed in by reading the environment of

@@ -11,5 +11,112 @@
         <option value="title">Terminal title</option>
       </sdpi-select>
     </sdpi-item>
+
+    <!--
+      Notification sounds are plugin-wide (`global`), not per key: they fire from the store
+      subscription, and keys are positional, so a per-key sound would follow the deck position
+      rather than the agent. They are edited here only because Stream Deck has no global
+      property inspector. See ADR 0003.
+    -->
+    <hr />
+    <sdpi-item label="Sounds"><em>Apply to every key</em></sdpi-item>
+
+    <sdpi-item label="Blocked">
+      <sdpi-select id="sel-blocked" setting="soundBlocked" global default="none">
+        <option value="none">No sound</option>
+        <option value="system:Basso">Basso</option>
+        <option value="system:Blow">Blow</option>
+        <option value="system:Bottle">Bottle</option>
+        <option value="system:Frog">Frog</option>
+        <option value="system:Funk">Funk</option>
+        <option value="system:Glass">Glass</option>
+        <option value="system:Hero">Hero</option>
+        <option value="system:Morse">Morse</option>
+        <option value="system:Ping">Ping</option>
+        <option value="system:Pop">Pop</option>
+        <option value="system:Purr">Purr</option>
+        <option value="system:Sosumi">Sosumi</option>
+        <option value="system:Submarine">Submarine</option>
+        <option value="system:Tink">Tink</option>
+        <option value="other">Other…</option>
+      </sdpi-select>
+    </sdpi-item>
+    <sdpi-item id="file-blocked" label="Blocked file" hidden>
+      <sdpi-file setting="soundBlockedFile" global accept="audio/*"></sdpi-file>
+    </sdpi-item>
+
+    <sdpi-item label="Done">
+      <sdpi-select id="sel-done" setting="soundDone" global default="none">
+        <option value="none">No sound</option>
+        <option value="system:Basso">Basso</option>
+        <option value="system:Blow">Blow</option>
+        <option value="system:Bottle">Bottle</option>
+        <option value="system:Frog">Frog</option>
+        <option value="system:Funk">Funk</option>
+        <option value="system:Glass">Glass</option>
+        <option value="system:Hero">Hero</option>
+        <option value="system:Morse">Morse</option>
+        <option value="system:Ping">Ping</option>
+        <option value="system:Pop">Pop</option>
+        <option value="system:Purr">Purr</option>
+        <option value="system:Sosumi">Sosumi</option>
+        <option value="system:Submarine">Submarine</option>
+        <option value="system:Tink">Tink</option>
+        <option value="other">Other…</option>
+      </sdpi-select>
+    </sdpi-item>
+    <sdpi-item id="file-done" label="Done file" hidden>
+      <sdpi-file setting="soundDoneFile" global accept="audio/*"></sdpi-file>
+    </sdpi-item>
+
+    <!--
+      herdr chimes on every agent state change by itself (`[ui.sound] enabled`), from a source
+      the plugin cannot mute. Shown only when that and a deck sound are both live, because
+      that is when the user actually hears two. See ADR 0003.
+    -->
+    <div id="clash" hidden>
+      <sdpi-item label="Heads up">
+        <em>herdr is playing its own sound on every state change, so you will hear two.</em>
+      </sdpi-item>
+      <sdpi-item label="">
+        <sdpi-button id="disable-herdr-sound">Turn off herdr's sounds</sdpi-button>
+      </sdpi-item>
+    </div>
+
+    <script>
+      // Show a file picker only for "Other…". sdpi-components has no conditional rendering, and
+      // the select's value arrives asynchronously once global settings load, so this polls
+      // briefly rather than reading once on DOMContentLoaded and showing the wrong thing.
+      const pairs = [
+        ["sel-blocked", "file-blocked"],
+        ["sel-done", "file-done"],
+      ];
+      const sync = () => {
+        for (const [selectId, itemId] of pairs) {
+          const select = document.getElementById(selectId);
+          const item = document.getElementById(itemId);
+          if (select && item) item.hidden = select.value !== "other";
+        }
+      };
+      for (const [selectId] of pairs) {
+        document.getElementById(selectId)?.addEventListener("change", sync);
+      }
+      setInterval(sync, 250);
+      sync();
+
+      // The plugin owns the answer to "is herdr also chiming?" — it reads herdr's config — so
+      // the notice is driven by a message rather than anything this page can work out.
+      const client = window.SDPIComponents?.streamDeckClient;
+      client?.onSendToPropertyInspector?.((ev) => {
+        const payload = ev?.payload ?? ev;
+        if (payload?.event !== "soundState") return;
+        const clash = document.getElementById("clash");
+        if (clash) clash.hidden = !(payload.herdrSoundEnabled && payload.deckSoundConfigured);
+      });
+
+      document.getElementById("disable-herdr-sound")?.addEventListener("click", () => {
+        client?.sendToPlugin?.({ event: "disableHerdrSound" });
+      });
+    </script>
   </body>
 </html>
